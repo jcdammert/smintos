@@ -2,6 +2,7 @@ import type {
   GhlResult,
   GhlContactInput,
   GhlContactResponse,
+  GhlListContactsResponse,
   GhlInvoiceInput,
   GhlInvoiceResponse,
   GhlCalendarEventInput,
@@ -86,6 +87,27 @@ export function updateContact(
     apiKey,
     path: `/contacts/${contactId}`,
     body: { ...data, locationId },
+  });
+}
+
+/**
+ * Fetch one page of contacts for a location. Pagination is cursor-based:
+ * pass the `startAfter` / `startAfterId` from the previous page's `meta`.
+ */
+export function listContacts(
+  locationId: string,
+  apiKey: string,
+  params: { limit?: number; startAfter?: number; startAfterId?: string } = {},
+): Promise<GhlResult<GhlListContactsResponse>> {
+  const q = new URLSearchParams();
+  q.set("locationId", locationId);
+  q.set("limit", String(params.limit ?? 100));
+  if (params.startAfter != null) q.set("startAfter", String(params.startAfter));
+  if (params.startAfterId) q.set("startAfterId", params.startAfterId);
+  return ghlRequest<GhlListContactsResponse>({
+    method: "GET",
+    apiKey,
+    path: `/contacts/?${q.toString()}`,
   });
 }
 

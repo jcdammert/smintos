@@ -108,6 +108,16 @@ export interface GhlContactResponse {
   contact: { id: string; [key: string]: unknown };
 }
 
+export interface GhlListContactsResponse {
+  contacts: Array<Record<string, unknown>>;
+  meta?: {
+    startAfterId?: string;
+    startAfter?: number;
+    nextPageUrl?: string;
+    total?: number;
+  };
+}
+
 export interface GhlInvoiceItem {
   name: string;
   qty: number;

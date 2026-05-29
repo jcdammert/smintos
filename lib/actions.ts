@@ -10,6 +10,7 @@ import {
   createInvoice,
   updateInvoice,
   createCalendarEvent,
+  listContacts,
 } from "@/lib/ghl";
 import type { LineItem } from "@/types";
 
@@ -67,6 +68,80 @@ export async function createClientAction(formData: FormData) {
   revalidatePath("/clients");
   revalidatePath("/");
   redirect("/clients");
+}
+
+/**
+ * One-click import: pull existing contacts from the connected GHL location into
+ * Smintos. Upserts by ghl_contact_id so re-running is safe (no duplicates).
+ * Paginates up to a cap to stay within serverless time limits.
+ */
+export async function importGhlContactsAction(): Promise<{
+  imported: number;
+  error?: string;
+}> {
+  const user = await getCurrentUser();
+  if (!user) return { imported: 0, error: "Not signed in." };
+  if (!hasGhlCreds(user))
+    return { imported: 0, error: "Connect GoHighLevel in Settings first." };
+
+  const supabase = createServiceSupabase();
+  let imported = 0;
+  let startAfter: number | undefined;
+  let startAfterId: string | undefined;
+  const PAGE = 100;
+  const MAX_PAGES = 25; // safety cap (~2,500 contacts/run)
+
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const res = await listContacts(user.ghl_location_id, user.ghl_api_key, {
+      limit: PAGE,
+      startAfter,
+      startAfterId,
+    });
+    if (!res.ok || !res.data) {
+      return { imported, error: res.error ?? "Failed to fetch from GoHighLevel." };
+    }
+
+    const contacts = res.data.contacts ?? [];
+    if (contacts.length === 0) break;
+
+    const rows = contacts.map((c) => {
+      const first = (c.firstName as string | undefined) ?? "";
+      const last = (c.lastName as string | undefined) ?? "";
+      const name =
+        (c.contactName as string | undefined) ||
+        (c.name as string | undefined) ||
+        `${first} ${last}`.trim() ||
+        "Unnamed";
+      return {
+        user_id: user.id,
+        ghl_contact_id: String(c.id),
+        name,
+        phone: (c.phone as string | null) ?? null,
+        email: (c.email as string | null) ?? null,
+        address: (c.address1 as string | null) ?? null,
+        city: (c.city as string | null) ?? null,
+        state: (c.state as string | null) ?? null,
+        postal_code: (c.postalCode as string | null) ?? null,
+        country: (c.country as string | null) ?? null,
+      };
+    });
+
+    const { error } = await supabase
+      .from("clients")
+      .upsert(rows, { onConflict: "ghl_contact_id" });
+    if (error) return { imported, error: error.message };
+
+    imported += rows.length;
+
+    const meta = res.data.meta;
+    if (contacts.length < PAGE || !meta?.startAfterId) break;
+    startAfter = meta.startAfter;
+    startAfterId = meta.startAfterId;
+  }
+
+  revalidatePath("/clients");
+  revalidatePath("/");
+  return { imported };
 }
 
 // --- Estimates ------------------------------------------------------------
