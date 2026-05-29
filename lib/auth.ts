@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import Nodemailer from "next-auth/providers/nodemailer";
+import { SupabaseAdapter } from "@auth/supabase-adapter";
 import { authConfig } from "@/lib/auth.config";
 import { createServiceSupabase } from "@/lib/supabase";
 
@@ -13,6 +14,14 @@ import { createServiceSupabase } from "@/lib/supabase";
  */
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
+  // Stores magic-link verification tokens (and auth users/sessions) in the
+  // `next_auth` schema of your Supabase project. Required by the email provider.
+  adapter: SupabaseAdapter({
+    // Placeholder fallbacks keep the build from failing when env vars are
+    // absent (e.g. local CI build). Real values come from Vercel env at runtime.
+    url: process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
+    secret: process.env.SUPABASE_SERVICE_ROLE_KEY || "placeholder-service-role-key",
+  }),
   providers: [
     Nodemailer({
       // Fallbacks keep the provider valid during build (when env vars may be
@@ -36,7 +45,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return true;
     },
-    async jwt({ token }) {
+    async jwt({ token, user }) {
+      // On initial sign-in, copy the email off the adapter user onto the token.
+      if (user?.email) token.email = user.email;
       if (token.email && !token.uid) {
         const supabase = createServiceSupabase();
         const { data } = await supabase
