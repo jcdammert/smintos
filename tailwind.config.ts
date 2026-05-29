@@ -5,12 +5,23 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        mint: "#3EB489",
-        "mint-dark": "#34A078",
-        ink: "#1A1A1A",
-        smoke: "#F5F5F5",
+        bg: "#f7f8f6",
+        ink: "#0a1a12",
+        mint: "#00e87a",
+        "mint-dark": "#00c468",
+        "text-primary": "#0d1f17",
+        "text-secondary": "#6b7280",
+        surface: "#ffffff",
+        line: "#e5e7eb",
+        danger: "#dc2626",
+        warn: "#d97706",
+        info: "#2563eb",
+      },
+      borderRadius: {
+        card: "14px",
       },
       fontFamily: {
+        display: ['"Clash Display"', "ui-sans-serif", "system-ui", "sans-serif"],
         sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
       },
     },

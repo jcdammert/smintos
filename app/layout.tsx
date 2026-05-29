@@ -1,10 +1,17 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Smintos — The Business OS for Home Service Companies",
+  title: "Smintos — Field Service Operations",
   description:
-    "Smintos is the all-in-one business operating system for home service businesses. Pipelines, automations, AI employees, and reporting in one place.",
+    "Run your home service business from one place. Clients, estimates, invoices, and scheduling powered by GoHighLevel.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: "#0a1a12",
 };
 
 export default function RootLayout({
@@ -14,14 +21,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
-          rel="stylesheet"
-        />
-      </head>
       <body>{children}</body>
     </html>
   );

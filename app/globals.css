@@ -1,3 +1,6 @@
+@import url("https://api.fontshare.com/v2/css?f[]=clash-display@600,700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -9,6 +12,23 @@ html {
 body {
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
-  color: #1A1A1A;
-  background: #ffffff;
+  color: #0d1f17;
+  background: #f7f8f6;
+  /* Prevent horizontal scroll on mobile */
+  overflow-x: hidden;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: "Clash Display", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Ensure tap targets are comfortable */
+button,
+a,
+input,
+select {
+  touch-action: manipulation;
 }
