@@ -21,8 +21,31 @@ export async function GET() {
     preview: key ? `${key.slice(0, 6)}...${key.slice(-4)}` : null,
   };
 
-  const result: Record<string, unknown> = { urlPresent: Boolean(url), keyInfo };
+  // The Supabase URL is not a secret (it's a NEXT_PUBLIC var) — echo it raw so
+  // we can spot a trailing slash / stray path.
+  const result: Record<string, unknown> = {
+    rawUrl: url,
+    urlEndsWithSlash: url.endsWith("/"),
+    keyInfo,
+  };
 
+  function summarize(error: {
+    message: string;
+    code?: string;
+    details?: string | null;
+    hint?: string | null;
+  } | null) {
+    return error
+      ? {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+        }
+      : null;
+  }
+
+  // Test 1: next_auth schema (what the adapter uses)
   try {
     const supabase = createClient(url, key, {
       db: { schema: "next_auth" },
@@ -32,19 +55,27 @@ export async function GET() {
       .from("users")
       .select("id, email")
       .limit(1);
-
-    result.queryError = error
-      ? {
-          message: error.message,
-          code: error.code,
-          details: error.details,
-          hint: error.hint,
-        }
-      : null;
-    result.rowCount = data?.length ?? 0;
+    result.nextAuthSchema = { error: summarize(error), rowCount: data?.length ?? 0 };
   } catch (err) {
-    result.threw =
-      err instanceof Error ? { name: err.name, message: err.message } : String(err);
+    result.nextAuthSchema = {
+      threw: err instanceof Error ? err.message : String(err),
+    };
+  }
+
+  // Test 2: public schema (default), to isolate whether the URL itself is bad
+  try {
+    const supabase = createClient(url, key, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data, error } = await supabase
+      .from("users")
+      .select("id")
+      .limit(1);
+    result.publicSchema = { error: summarize(error), rowCount: data?.length ?? 0 };
+  } catch (err) {
+    result.publicSchema = {
+      threw: err instanceof Error ? err.message : String(err),
+    };
   }
 
   return NextResponse.json(result, { status: 200 });
