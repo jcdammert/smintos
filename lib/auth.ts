@@ -14,6 +14,25 @@ import { createServiceSupabase } from "@/lib/supabase";
  */
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
+  debug: true,
+  // Surface the *underlying* cause of adapter/auth errors (PostgREST/SMTP
+  // messages) instead of the generic wrapper, so failures are diagnosable.
+  logger: {
+    error(error: Error) {
+      const withCause = error as Error & { cause?: unknown };
+      console.error("SMINTOS_AUTH_ERROR name=", error.name);
+      console.error("SMINTOS_AUTH_ERROR message=", error.message);
+      try {
+        const cause = withCause.cause;
+        console.error(
+          "SMINTOS_AUTH_ERROR cause=",
+          JSON.stringify(cause, Object.getOwnPropertyNames(cause ?? {})),
+        );
+      } catch {
+        console.error("SMINTOS_AUTH_ERROR cause=", String(withCause.cause));
+      }
+    },
+  },
   // Stores magic-link verification tokens (and auth users/sessions) in the
   // `next_auth` schema of your Supabase project. Required by the email provider.
   adapter: SupabaseAdapter({
