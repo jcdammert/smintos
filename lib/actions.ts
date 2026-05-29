@@ -29,6 +29,10 @@ export async function createClientAction(formData: FormData) {
   const phone = String(formData.get("phone") ?? "").trim() || null;
   const email = String(formData.get("email") ?? "").trim() || null;
   const address = String(formData.get("address") ?? "").trim() || null;
+  const city = String(formData.get("city") ?? "").trim() || null;
+  const state = String(formData.get("state") ?? "").trim() || null;
+  const postalCode = String(formData.get("postal_code") ?? "").trim() || null;
+  const country = String(formData.get("country") ?? "").trim() || null;
   if (!name) return;
 
   let ghlContactId: string | null = null;
@@ -38,6 +42,10 @@ export async function createClientAction(formData: FormData) {
       phone: phone ?? undefined,
       email: email ?? undefined,
       address1: address ?? undefined,
+      city: city ?? undefined,
+      state: state ?? undefined,
+      postalCode: postalCode ?? undefined,
+      country: country ?? undefined,
     });
     if (res.ok && res.data?.contact?.id) ghlContactId = res.data.contact.id;
   }
@@ -50,6 +58,10 @@ export async function createClientAction(formData: FormData) {
     phone,
     email,
     address,
+    city,
+    state,
+    postal_code: postalCode,
+    country,
   });
 
   revalidatePath("/clients");

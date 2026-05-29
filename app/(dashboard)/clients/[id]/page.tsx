@@ -46,7 +46,11 @@ export default async function ClientDetailPage({
         <dl className="space-y-2 text-sm">
           <Row label="Phone" value={client.phone} />
           <Row label="Email" value={client.email} />
-          <Row label="Address" value={client.address} />
+          <Row label="Street" value={client.address} />
+          <Row label="City" value={client.city} />
+          <Row label="State" value={client.state} />
+          <Row label="Zip" value={client.postal_code} />
+          <Row label="Country" value={client.country} />
           <Row
             label="GHL contact"
             value={client.ghl_contact_id ? "Synced" : "Not synced"}

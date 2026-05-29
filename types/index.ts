@@ -28,7 +28,11 @@ export interface Client {
   name: string;
   phone: string | null;
   email: string | null;
-  address: string | null;
+  address: string | null; // street line 1
+  city: string | null;
+  state: string | null;
+  postal_code: string | null;
+  country: string | null;
   created_at: string;
 }
 
@@ -94,6 +98,10 @@ export interface GhlContactInput {
   phone?: string;
   email?: string;
   address1?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
 }
 
 export interface GhlContactResponse {

@@ -100,6 +100,10 @@ export async function POST(req: Request) {
               phone: (c.phone as string | null) ?? null,
               email: (c.email as string | null) ?? null,
               address: (c.address1 as string | null) ?? null,
+              city: (c.city as string | null) ?? null,
+              state: (c.state as string | null) ?? null,
+              postal_code: (c.postalCode as string | null) ?? null,
+              country: (c.country as string | null) ?? null,
             },
             { onConflict: "ghl_contact_id" },
           );

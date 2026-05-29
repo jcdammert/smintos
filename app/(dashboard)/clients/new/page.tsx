@@ -1,7 +1,5 @@
 import Link from "next/link";
-import { createClientAction } from "@/lib/actions";
-import { Input } from "@/components/ui/Input";
-import { Button } from "@/components/ui/Button";
+import { ClientForm } from "@/components/modules/ClientForm";
 
 export default function NewClientPage() {
   return (
@@ -19,19 +17,7 @@ export default function NewClientPage() {
         </h1>
       </header>
 
-      <form action={createClientAction} className="space-y-4">
-        <Input id="name" name="name" label="Name" required placeholder="Jane Contractor" />
-        <Input id="phone" name="phone" type="tel" label="Phone" placeholder="(555) 123-4567" />
-        <Input id="email" name="email" type="email" label="Email" placeholder="jane@example.com" />
-        <Input id="address" name="address" label="Address" placeholder="123 Main St" />
-        <p className="text-xs text-text-secondary">
-          Saved clients sync to GoHighLevel as a contact when your account is
-          connected.
-        </p>
-        <Button type="submit" size="lg">
-          Save client
-        </Button>
-      </form>
+      <ClientForm />
     </div>
   );
 }

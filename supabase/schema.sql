@@ -24,6 +24,10 @@ create table if not exists public.clients (
   phone text,
   email text,
   address text,
+  city text,
+  state text,
+  postal_code text,
+  country text,
   created_at timestamptz not null default now()
 );
 create index if not exists clients_user_id_idx on public.clients (user_id);
