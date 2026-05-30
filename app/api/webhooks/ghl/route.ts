@@ -140,7 +140,7 @@ export async function POST(req: Request) {
         const first = pickString(c, ["firstName", "first_name"]) ?? "";
         const last = pickString(c, ["lastName", "last_name"]) ?? "";
         const fullName =
-          pickString(c, ["contactName", "fullNameLowerCase", "name"]) ??
+          pickString(c, ["contactName", "fullNameLowerCase", "name"]) ||
           `${first} ${last}`.trim() ||
           "Unnamed";
 
