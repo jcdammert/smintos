@@ -142,9 +142,9 @@ export function EstimateForm({
         </button>
       </div>
 
-      <div className="flex items-center justify-between rounded-card bg-ink p-4 text-white">
-        <span className="text-sm text-white/70">Estimate total</span>
-        <span className="font-display text-xl font-bold text-mint">
+      <div className="flex items-center justify-between rounded-card border border-line bg-white p-4">
+        <span className="text-sm text-text-secondary">Estimate total</span>
+        <span className="font-display text-xl font-bold text-mint-dark">
           {formatCurrency(total)}
         </span>
       </div>

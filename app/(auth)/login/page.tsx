@@ -18,30 +18,32 @@ export default function LoginPage({
   }
 
   return (
-    <main className="flex min-h-screen flex-col bg-ink px-6 py-12 text-white">
+    <main className="flex min-h-screen flex-col bg-bg px-6 py-12 text-text-primary">
       <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center">
         <div className="mb-10 text-center">
           <div className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-card bg-mint text-xl font-bold text-ink">
             S
           </div>
-          <h1 className="font-display text-3xl font-bold">Smintos</h1>
-          <p className="mt-2 text-sm text-white/60">
+          <h1 className="font-display text-3xl font-bold text-text-primary">
+            Smintos
+          </h1>
+          <p className="mt-2 text-sm text-text-secondary">
             Field service operations, one login.
           </p>
         </div>
 
         {checkEmail ? (
-          <div className="rounded-card border border-mint/30 bg-mint/10 p-6 text-center">
-            <p className="font-display text-lg font-semibold text-mint">
+          <div className="rounded-card border border-mint/40 bg-mint/10 p-6 text-center">
+            <p className="font-display text-lg font-semibold text-mint-dark">
               Check your email
             </p>
-            <p className="mt-2 text-sm text-white/70">
+            <p className="mt-2 text-sm text-text-secondary">
               We sent you a magic link. Tap it to sign in — no password needed.
             </p>
           </div>
         ) : (
           <form action={sendMagicLink} className="space-y-4">
-            <div className="rounded-card bg-white p-4">
+            <div className="rounded-card border border-line bg-white p-4">
               <Input
                 id="email"
                 name="email"
@@ -53,7 +55,7 @@ export default function LoginPage({
               />
             </div>
             {hasError && (
-              <p className="text-sm text-red-300">
+              <p className="text-sm text-danger">
                 Something went wrong sending your link. Try again.
               </p>
             )}
@@ -63,7 +65,7 @@ export default function LoginPage({
           </form>
         )}
 
-        <p className="mt-8 text-center text-xs text-white/40">
+        <p className="mt-8 text-center text-xs text-text-secondary">
           Powered by Scale Mint
         </p>
       </div>

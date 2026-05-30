@@ -79,17 +79,11 @@ export default async function DashboardHome() {
         </button>
       </header>
 
-      {/* 2. Pipeline strip */}
-      <section className="rounded-card bg-ink p-4 text-white">
-        <div className="grid grid-cols-3 gap-2">
-          <StatPill label="Estimates out" value={estimatesOut} />
-          <StatPill label="Jobs today" value={todaysAppointments.length} />
-          <StatPill
-            label="Overdue"
-            value={overdueInvoices.length}
-            danger
-          />
-        </div>
+      {/* 2. Pipeline strip — clean light cards with mint accents */}
+      <section className="grid grid-cols-3 gap-2">
+        <StatPill label="Estimates out" value={estimatesOut} />
+        <StatPill label="Jobs today" value={todaysAppointments.length} />
+        <StatPill label="Overdue" value={overdueInvoices.length} danger />
       </section>
 
       {/* 3. Quick action row */}
@@ -214,15 +208,17 @@ function StatPill({
   danger?: boolean;
 }) {
   return (
-    <div className="rounded-card bg-white/5 p-3">
+    <div className="rounded-card border border-line bg-white p-3">
       <p
         className={`font-display text-2xl font-bold ${
-          danger && value > 0 ? "text-danger" : "text-mint"
+          danger && value > 0 ? "text-danger" : "text-mint-dark"
         }`}
       >
         {value}
       </p>
-      <p className="mt-0.5 text-[11px] leading-tight text-white/60">{label}</p>
+      <p className="mt-0.5 text-[11px] leading-tight text-text-secondary">
+        {label}
+      </p>
     </div>
   );
 }

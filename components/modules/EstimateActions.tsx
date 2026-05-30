@@ -43,7 +43,7 @@ export function EstimateActions({
         <button
           disabled={pending}
           onClick={() => start(() => sendEstimateAction(estimateId))}
-          className="min-h-[52px] w-full rounded-card bg-ink text-base font-semibold text-white transition active:scale-[0.98] disabled:opacity-50"
+          className="min-h-[52px] w-full rounded-card bg-mint text-base font-semibold text-ink transition active:scale-[0.98] disabled:opacity-50"
         >
           {pending ? "Sending…" : "Send to client (SMS/email)"}
         </button>

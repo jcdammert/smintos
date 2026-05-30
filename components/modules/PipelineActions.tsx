@@ -35,7 +35,7 @@ export function MarkPaidButton({ invoiceId }: { invoiceId: string }) {
         start(() => markInvoicePaidAction(invoiceId));
       }}
       disabled={pending}
-      className="rounded-full bg-ink px-3 py-1.5 text-xs font-semibold text-white transition active:scale-95 disabled:opacity-50"
+      className="rounded-full border border-mint bg-white px-3 py-1.5 text-xs font-semibold text-mint-dark transition active:scale-95 disabled:opacity-50"
     >
       {pending ? "…" : "Mark Paid"}
     </button>
