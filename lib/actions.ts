@@ -175,6 +175,11 @@ export async function importGhlContactsAction(): Promise<{
         state: (c.state as string | null) ?? null,
         postal_code: (c.postalCode as string | null) ?? null,
         country: (c.country as string | null) ?? null,
+        created_at:
+          (c.dateAdded as string | undefined) ??
+          (c.createdAt as string | undefined) ??
+          (c.dateCreated as string | undefined) ??
+          undefined,
       };
     });
 
@@ -620,6 +625,14 @@ export async function importGhlInvoicesAction(): Promise<{
             ? ((inv.updatedAt as string | undefined) ??
               new Date().toISOString())
             : null,
+        // Carry GHL's original timestamp instead of letting Supabase default
+        // to now(). Tries the most-likely field names; falls back gracefully.
+        created_at:
+          (inv.createdAt as string | undefined) ??
+          (inv.dateAdded as string | undefined) ??
+          (inv.issueDate as string | undefined) ??
+          (inv.created_at as string | undefined) ??
+          undefined,
       });
     }
 
@@ -713,6 +726,14 @@ export async function importGhlEstimatesAction(): Promise<{
           status === "sent" || status === "approved" || status === "declined"
             ? ((e.updatedAt as string | undefined) ?? new Date().toISOString())
             : null,
+        // Preserve GHL's original date so the list shows when the estimate was
+        // actually created, not when we imported it.
+        created_at:
+          (e.createdAt as string | undefined) ??
+          (e.dateAdded as string | undefined) ??
+          (e.estimateDate as string | undefined) ??
+          (e.created_at as string | undefined) ??
+          undefined,
       });
     }
 
@@ -782,6 +803,11 @@ export async function importGhlProductsAction(): Promise<{
           name: stripHtml(prod.name as string | undefined) || "Unnamed product",
           description: stripHtml(prod.description as string | undefined) || null,
           unit_price: unitPrice,
+          created_at:
+            (prod.createdAt as string | undefined) ??
+            (prod.dateAdded as string | undefined) ??
+            (prod.created_at as string | undefined) ??
+            undefined,
         };
       })
       .filter((r): r is NonNullable<typeof r> => r !== null);
