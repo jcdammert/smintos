@@ -363,6 +363,49 @@ export async function POST(req: Request) {
         break;
       }
 
+      case "message.inbound":
+      case "message.outbound":
+      case "InboundMessage":
+      case "OutboundMessage":
+      case "CustomerReplied": {
+        const m = (payload.message ?? payload) as Record<string, unknown>;
+        const messageId =
+          pickString(m, ["id", "message_id", "messageId", "_id"]) ?? "";
+        if (!messageId) break;
+        const contactId =
+          pickString(m, ["contactId", "contact_id"]) ??
+          pickString(payload as Record<string, unknown>, ["contactId", "contact_id"]);
+        const direction =
+          eventType === "message.outbound" ||
+          eventType === "OutboundMessage"
+            ? "outbound"
+            : "inbound";
+
+        let clientId: string | null = null;
+        if (contactId) {
+          clientId = await resolveClientId(supabase, userId, contactId);
+        }
+
+        await supabase.from("messages").upsert(
+          {
+            user_id: userId,
+            client_id: clientId,
+            ghl_contact_id: contactId,
+            ghl_conversation_id: pickString(m, [
+              "conversationId",
+              "conversation_id",
+            ]),
+            ghl_message_id: messageId,
+            direction,
+            channel: pickString(m, ["type", "messageType", "channel"]),
+            body: pickString(m, ["body", "message", "text"]),
+            status: pickString(m, ["status"]),
+          },
+          { onConflict: "ghl_message_id" },
+        );
+        break;
+      }
+
       default:
         // Unknown event type — log and acknowledge.
         break;

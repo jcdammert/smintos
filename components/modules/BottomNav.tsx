@@ -7,7 +7,7 @@ import { FabSheet } from "@/components/modules/FabSheet";
 const tabs = [
   { href: "/", label: "Home", icon: HomeIcon },
   { href: "/library", label: "Library", icon: LibraryIcon },
-  { href: "/schedule", label: "Schedule", icon: CalendarIcon },
+  { href: "/messages", label: "Messages", icon: ChatIcon },
   { href: "/settings", label: "Account", icon: UserIcon },
 ];
 
@@ -76,6 +76,13 @@ function LibraryIcon({ active }: { active: boolean }) {
   return (
     <svg viewBox="0 0 24 24" className="h-6 w-6" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8">
       <path d="M4 4h5v16H4zM10 4h5v16h-5zM18 4l3 1-3 15-3-1z" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function ChatIcon({ active }: { active: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" className="h-6 w-6" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8">
+      <path d="M4 5h16v11H8l-4 4V5z" strokeLinejoin="round" />
     </svg>
   );
 }

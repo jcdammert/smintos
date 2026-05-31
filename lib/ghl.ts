@@ -7,6 +7,10 @@ import type {
   GhlInvoiceResponse,
   GhlCalendarEventInput,
   GhlCalendarEventResponse,
+  GhlSendMessageInput,
+  GhlSendMessageResponse,
+  GhlConversationsSearchResponse,
+  GhlMessagesPageResponse,
 } from "@/types";
 
 const BASE_URL = "https://services.leadconnectorhq.com";
@@ -181,5 +185,63 @@ export function deleteCalendarEvent(
     method: "DELETE",
     apiKey,
     path: `/calendars/events/${eventId}`,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Conversations / Messages
+// ---------------------------------------------------------------------------
+
+/**
+ * Send an SMS / Email through GHL on behalf of a contact.
+ */
+export function sendConversationMessage(
+  _locationId: string,
+  apiKey: string,
+  data: GhlSendMessageInput,
+): Promise<GhlResult<GhlSendMessageResponse>> {
+  return ghlRequest<GhlSendMessageResponse>({
+    method: "POST",
+    apiKey,
+    path: "/conversations/messages",
+    body: data,
+  });
+}
+
+/**
+ * List conversations for a location (used by the historical import).
+ */
+export function searchConversations(
+  locationId: string,
+  apiKey: string,
+  params: { limit?: number; offset?: number } = {},
+): Promise<GhlResult<GhlConversationsSearchResponse>> {
+  const q = new URLSearchParams();
+  q.set("locationId", locationId);
+  q.set("limit", String(params.limit ?? 50));
+  if (params.offset) q.set("offset", String(params.offset));
+  return ghlRequest<GhlConversationsSearchResponse>({
+    method: "GET",
+    apiKey,
+    path: `/conversations/search?${q.toString()}`,
+  });
+}
+
+/**
+ * List messages inside a single conversation.
+ */
+export function listConversationMessages(
+  _locationId: string,
+  apiKey: string,
+  conversationId: string,
+  params: { limit?: number; lastMessageId?: string } = {},
+): Promise<GhlResult<GhlMessagesPageResponse>> {
+  const q = new URLSearchParams();
+  q.set("limit", String(params.limit ?? 100));
+  if (params.lastMessageId) q.set("lastMessageId", params.lastMessageId);
+  return ghlRequest<GhlMessagesPageResponse>({
+    method: "GET",
+    apiKey,
+    path: `/conversations/${conversationId}/messages?${q.toString()}`,
   });
 }

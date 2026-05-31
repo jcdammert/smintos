@@ -11,6 +11,9 @@ import {
   updateInvoice,
   createCalendarEvent,
   listContacts,
+  sendConversationMessage,
+  searchConversations,
+  listConversationMessages,
 } from "@/lib/ghl";
 import type { LineItem } from "@/types";
 
@@ -435,6 +438,161 @@ export async function createAppointmentAction(formData: FormData) {
   revalidatePath("/schedule");
   revalidatePath("/");
   redirect("/schedule");
+}
+
+// --- Messages -------------------------------------------------------------
+
+/**
+ * Send an SMS reply through GHL. Records the outbound message locally so the
+ * thread updates immediately, even before the optional outbound webhook fires.
+ */
+export async function sendMessageAction(
+  clientId: string,
+  body: string,
+  channel: "SMS" | "Email" = "SMS",
+): Promise<{ ok: boolean; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+  if (!hasGhlCreds(user))
+    return { ok: false, error: "Connect GoHighLevel in Settings first." };
+
+  const trimmed = body.trim();
+  if (!trimmed) return { ok: false, error: "Message is empty." };
+
+  const supabase = createServiceSupabase();
+  const { data: client } = await supabase
+    .from("clients")
+    .select("id, ghl_contact_id")
+    .eq("user_id", user.id)
+    .eq("id", clientId)
+    .maybeSingle();
+
+  if (!client?.ghl_contact_id)
+    return { ok: false, error: "Client has no GoHighLevel contact id." };
+
+  const res = await sendConversationMessage(
+    user.ghl_location_id,
+    user.ghl_api_key,
+    { type: channel, contactId: client.ghl_contact_id, message: trimmed },
+  );
+  if (!res.ok) return { ok: false, error: res.error ?? "Send failed." };
+
+  await supabase.from("messages").insert({
+    user_id: user.id,
+    client_id: client.id,
+    ghl_contact_id: client.ghl_contact_id,
+    ghl_conversation_id: res.data?.conversationId ?? null,
+    ghl_message_id: res.data?.messageId ?? null,
+    direction: "outbound",
+    channel,
+    body: trimmed,
+    status: "sent",
+  });
+
+  revalidatePath(`/messages/${client.id}`);
+  revalidatePath("/messages");
+  return { ok: true };
+}
+
+/**
+ * One-click historical import: walks GHL conversations and pulls existing
+ * messages into Smintos. Capped so we stay within serverless time limits.
+ */
+export async function importGhlMessagesAction(): Promise<{
+  imported: number;
+  error?: string;
+}> {
+  const user = await getCurrentUser();
+  if (!user) return { imported: 0, error: "Not signed in." };
+  if (!hasGhlCreds(user))
+    return { imported: 0, error: "Connect GoHighLevel first." };
+
+  const supabase = createServiceSupabase();
+  const MAX_CONVERSATIONS = 25;
+  const MESSAGES_PER_CONVO = 100;
+
+  const convRes = await searchConversations(
+    user.ghl_location_id,
+    user.ghl_api_key,
+    { limit: MAX_CONVERSATIONS },
+  );
+  if (!convRes.ok || !convRes.data) {
+    return { imported: 0, error: convRes.error ?? "GHL fetch failed." };
+  }
+  const conversations = (convRes.data.conversations ?? []) as Array<
+    Record<string, unknown>
+  >;
+
+  let imported = 0;
+  for (const conv of conversations) {
+    const convId = String(conv.id ?? "");
+    if (!convId) continue;
+    const contactId = (conv.contactId as string | undefined) ?? null;
+
+    let clientId: string | null = null;
+    if (contactId) {
+      const { data: client } = await supabase
+        .from("clients")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("ghl_contact_id", contactId)
+        .maybeSingle();
+      clientId = client?.id ?? null;
+    }
+
+    const msgRes = await listConversationMessages(
+      user.ghl_location_id,
+      user.ghl_api_key,
+      convId,
+      { limit: MESSAGES_PER_CONVO },
+    );
+    if (!msgRes.ok || !msgRes.data) continue;
+
+    // GHL nests the messages array a few different ways depending on the
+    // endpoint version — handle each shape defensively.
+    const rawMessages =
+      (Array.isArray(msgRes.data.messages) && msgRes.data.messages) ||
+      (msgRes.data.messages &&
+        typeof msgRes.data.messages === "object" &&
+        Array.isArray(
+          (msgRes.data.messages as { messages?: unknown[] }).messages,
+        ) &&
+        (msgRes.data.messages as { messages: Array<Record<string, unknown>> })
+          .messages) ||
+      [];
+
+    if (rawMessages.length === 0) continue;
+
+    const rows = rawMessages.map((m: Record<string, unknown>) => {
+      const dir = String(m.direction ?? "").toLowerCase();
+      return {
+        user_id: user.id,
+        client_id: clientId,
+        ghl_contact_id: contactId,
+        ghl_conversation_id: convId,
+        ghl_message_id: String(m.id ?? m._id ?? "") || null,
+        direction: dir === "outbound" ? "outbound" : "inbound",
+        channel: (m.type as string | undefined) ?? (m.messageType as string | undefined) ?? "SMS",
+        body: (m.body as string | undefined) ?? (m.message as string | undefined) ?? null,
+        status: (m.status as string | undefined) ?? null,
+        created_at:
+          (m.dateAdded as string | undefined) ??
+          (m.created_at as string | undefined) ??
+          undefined,
+      };
+    }).filter((r) => r.ghl_message_id);
+
+    if (rows.length > 0) {
+      const { error } = await supabase
+        .from("messages")
+        .upsert(rows, { onConflict: "ghl_message_id" });
+      if (!error) imported += rows.length;
+    }
+  }
+
+  revalidatePath("/messages");
+  revalidatePath("/");
+  return { imported };
 }
 
 // --- Settings -------------------------------------------------------------

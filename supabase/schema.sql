@@ -84,6 +84,23 @@ create table if not exists public.appointments (
 );
 create index if not exists appointments_user_id_idx on public.appointments (user_id);
 
+-- --- messages --------------------------------------------------------------
+create table if not exists public.messages (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users (id) on delete cascade,
+  client_id uuid references public.clients (id) on delete set null,
+  ghl_contact_id text,
+  ghl_conversation_id text,
+  ghl_message_id text unique,
+  direction text not null check (direction in ('inbound','outbound')),
+  channel text,
+  body text,
+  status text,
+  created_at timestamptz not null default now()
+);
+create index if not exists messages_user_id_idx on public.messages (user_id);
+create index if not exists messages_client_id_idx on public.messages (client_id);
+
 -- ===========================================================================
 -- Row Level Security
 -- ===========================================================================
@@ -102,6 +119,7 @@ alter table public.clients      enable row level security;
 alter table public.estimates    enable row level security;
 alter table public.invoices     enable row level security;
 alter table public.appointments enable row level security;
+alter table public.messages     enable row level security;
 
 -- Service role bypasses RLS automatically; these explicit policies make intent
 -- clear and allow auth.uid()-based access if you migrate to Supabase Auth.
@@ -140,4 +158,9 @@ create policy "owner_modify" on public.invoices
 create policy "owner_select" on public.appointments
   for select using (auth.uid() = user_id);
 create policy "owner_modify" on public.appointments
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create policy "owner_select" on public.messages
+  for select using (auth.uid() = user_id);
+create policy "owner_modify" on public.messages
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

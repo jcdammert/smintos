@@ -67,6 +67,22 @@ export interface Invoice {
   created_at: string;
 }
 
+export type MessageDirection = "inbound" | "outbound";
+
+export interface Message {
+  id: string;
+  user_id: string;
+  client_id: string | null;
+  ghl_contact_id: string | null;
+  ghl_conversation_id: string | null;
+  ghl_message_id: string | null;
+  direction: MessageDirection;
+  channel: string | null;
+  body: string | null;
+  status: string | null;
+  created_at: string;
+}
+
 export interface Appointment {
   id: string;
   user_id: string;
@@ -151,4 +167,29 @@ export interface GhlCalendarEventInput {
 export interface GhlCalendarEventResponse {
   id?: string;
   event?: { id: string; [key: string]: unknown };
+}
+
+export interface GhlSendMessageInput {
+  type: "SMS" | "Email";
+  contactId: string;
+  message: string;
+}
+
+export interface GhlSendMessageResponse {
+  conversationId?: string;
+  messageId?: string;
+  [key: string]: unknown;
+}
+
+export interface GhlConversationsSearchResponse {
+  conversations?: Array<Record<string, unknown>>;
+  total?: number;
+}
+
+export interface GhlMessagesPageResponse {
+  lastMessageId?: string;
+  nextPage?: boolean;
+  messages?:
+    | Array<Record<string, unknown>>
+    | { messages?: Array<Record<string, unknown>>; lastMessageId?: string };
 }
