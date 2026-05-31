@@ -44,6 +44,7 @@ create table if not exists public.estimates (
   status text not null default 'draft'
     check (status in ('draft','sent','approved','declined')),
   sent_at timestamptz,
+  viewed_at timestamptz,
   expires_at timestamptz,
   created_at timestamptz not null default now()
 );
@@ -62,6 +63,7 @@ create table if not exists public.invoices (
   status text not null default 'sent'
     check (status in ('sent','paid','overdue')),
   due_date timestamptz,
+  viewed_at timestamptz,
   paid_at timestamptz,
   created_at timestamptz not null default now()
 );

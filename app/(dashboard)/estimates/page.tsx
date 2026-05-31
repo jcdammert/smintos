@@ -38,6 +38,9 @@ export default async function EstimatesPage() {
                 </p>
                 <p className="truncate text-sm text-text-secondary">
                   {e.client?.name ?? "—"} · {formatDate(e.created_at)}
+                  {e.viewed_at && (
+                    <span className="ml-2 text-mint-dark">· 👁 Viewed</span>
+                  )}
                 </p>
               </div>
               <EstimateBadge status={e.status} />

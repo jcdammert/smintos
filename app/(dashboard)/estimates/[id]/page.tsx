@@ -68,6 +68,18 @@ export default async function EstimateDetailPage({
               {formatDate(estimate.sent_at)}
             </dd>
           </div>
+          <div className="flex justify-between">
+            <dt className="text-text-secondary">Viewed by client</dt>
+            <dd className="font-medium">
+              {estimate.viewed_at ? (
+                <span className="text-mint-dark">
+                  ✓ {formatDate(estimate.viewed_at)}
+                </span>
+              ) : (
+                <span className="text-text-secondary">Not yet</span>
+              )}
+            </dd>
+          </div>
         </dl>
       </Card>
 

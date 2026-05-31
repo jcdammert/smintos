@@ -63,6 +63,18 @@ export default async function InvoiceDetailPage({
             </dd>
           </div>
           <div className="flex justify-between">
+            <dt className="text-text-secondary">Viewed by client</dt>
+            <dd className="font-medium">
+              {invoice.viewed_at ? (
+                <span className="text-mint-dark">
+                  ✓ {formatDate(invoice.viewed_at)}
+                </span>
+              ) : (
+                <span className="text-text-secondary">Not yet</span>
+              )}
+            </dd>
+          </div>
+          <div className="flex justify-between">
             <dt className="text-text-secondary">Paid</dt>
             <dd className="font-medium text-text-primary">
               {formatDate(invoice.paid_at)}

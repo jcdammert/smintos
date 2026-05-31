@@ -46,6 +46,7 @@ export interface Estimate {
   total: number;
   status: EstimateStatus;
   sent_at: string | null;
+  viewed_at: string | null;
   expires_at: string | null;
   created_at: string;
 }
@@ -61,6 +62,7 @@ export interface Invoice {
   total: number;
   status: InvoiceStatus;
   due_date: string | null;
+  viewed_at: string | null;
   paid_at: string | null;
   created_at: string;
 }

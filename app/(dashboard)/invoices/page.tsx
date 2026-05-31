@@ -34,6 +34,9 @@ export default async function InvoicesPage() {
                 </p>
                 <p className="truncate text-sm text-text-secondary">
                   {i.client?.name ?? "—"} · due {formatDate(i.due_date)}
+                  {i.viewed_at && (
+                    <span className="ml-2 text-mint-dark">· 👁 Viewed</span>
+                  )}
                 </p>
               </div>
               <InvoiceBadge status={i.status} />
