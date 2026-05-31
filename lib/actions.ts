@@ -20,6 +20,38 @@ import {
 import type { LineItem } from "@/types";
 
 /**
+ * Translate a GHL invoice/estimate line-item into Smintos's LineItem shape.
+ * GHL fields vary (name vs description, qty vs quantity, amount vs price, and
+ * sometimes a nested price object) — be tolerant.
+ */
+function mapGhlLineItems(rawItems: unknown): LineItem[] {
+  if (!Array.isArray(rawItems)) return [];
+  return rawItems.map((raw, i) => {
+    const r = (raw ?? {}) as Record<string, unknown>;
+    const priceObj = r.price as { amount?: number } | undefined;
+    const description =
+      (r.name as string | undefined) ||
+      (r.description as string | undefined) ||
+      (r.productName as string | undefined) ||
+      "Item";
+    return {
+      id: String(r._id ?? r.id ?? `imp-${i}`),
+      description,
+      quantity: Number(r.qty ?? r.quantity ?? 1) || 1,
+      unitPrice:
+        Number(
+          r.amount ??
+            r.unitPrice ??
+            r.unit_price ??
+            priceObj?.amount ??
+            (r.price as number | undefined) ??
+            0,
+        ) || 0,
+    };
+  });
+}
+
+/**
  * Server actions. These run only on the server, so reading GHL credentials and
  * calling the GHL API here never exposes keys to the client (spec rule 1).
  * Every write is scoped to the authenticated user's id (spec rule 2).
@@ -558,10 +590,9 @@ export async function importGhlInvoicesAction(): Promise<{
           (inv.invoiceNumber as string | undefined) ??
           (inv.name as string | undefined) ??
           `INV-${ghlId.slice(-6)}`,
-        line_items:
-          (Array.isArray(inv.invoiceItems) && inv.invoiceItems) ||
-          (Array.isArray(inv.items) && inv.items) ||
-          [],
+        line_items: mapGhlLineItems(
+          inv.invoiceItems ?? inv.items ?? inv.lineItems,
+        ),
         total: Number(inv.total ?? inv.amount ?? 0) || 0,
         status,
         due_date: (inv.dueDate as string | undefined) ?? null,
@@ -656,10 +687,7 @@ export async function importGhlEstimatesAction(): Promise<{
           (e.estimateNumber as string | undefined) ??
           (e.name as string | undefined) ??
           `EST-${ghlId.slice(-6)}`,
-        line_items:
-          (Array.isArray(e.invoiceItems) && e.invoiceItems) ||
-          (Array.isArray(e.items) && e.items) ||
-          [],
+        line_items: mapGhlLineItems(e.invoiceItems ?? e.items ?? e.lineItems),
         total: Number(e.total ?? e.amount ?? 0) || 0,
         status,
         sent_at:
