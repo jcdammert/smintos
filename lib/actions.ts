@@ -274,6 +274,73 @@ export async function convertEstimateToInvoiceAction(estimateId: string) {
   redirect("/invoices");
 }
 
+/**
+ * Create an invoice directly (skipping the estimate step). Mirrors the
+ * estimate->invoice conversion but takes the line items from the form
+ * instead of from a source estimate.
+ */
+export async function createInvoiceAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const clientId = String(formData.get("client_id") ?? "");
+  const rawItems = String(formData.get("line_items") ?? "[]");
+  if (!clientId) return;
+
+  let lineItems: LineItem[] = [];
+  try {
+    lineItems = JSON.parse(rawItems) as LineItem[];
+  } catch {
+    lineItems = [];
+  }
+  const total = lineItems.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+
+  // Push the invoice to GHL when credentials are connected and we have a contact id.
+  let ghlInvoiceId: string | null = null;
+  const supabase = createServiceSupabase();
+  const { data: client } = await supabase
+    .from("clients")
+    .select("ghl_contact_id")
+    .eq("user_id", user.id)
+    .eq("id", clientId)
+    .maybeSingle();
+
+  if (hasGhlCreds(user) && client?.ghl_contact_id) {
+    const res = await createInvoice(user.ghl_location_id, user.ghl_api_key, {
+      contactId: client.ghl_contact_id,
+      name: `Invoice ${shortNumber("INV")}`,
+      items: lineItems.map((i) => ({
+        name: i.description,
+        qty: i.quantity,
+        amount: i.unitPrice,
+      })),
+      total,
+    });
+    if (res.ok) ghlInvoiceId = res.data?.invoice?.id ?? res.data?.id ?? null;
+  }
+
+  const { data: invoice } = await supabase
+    .from("invoices")
+    .insert({
+      user_id: user.id,
+      client_id: clientId,
+      ghl_invoice_id: ghlInvoiceId,
+      invoice_number: shortNumber("INV"),
+      line_items: lineItems,
+      total,
+      status: "sent",
+      due_date: new Date(Date.now() + 14 * 86400000).toISOString(),
+    })
+    .select("id")
+    .maybeSingle();
+
+  revalidatePath("/invoices");
+  revalidatePath("/library");
+  revalidatePath("/");
+  if (invoice?.id) redirect(`/invoices/${invoice.id}`);
+  redirect("/invoices");
+}
+
 // --- Invoices -------------------------------------------------------------
 
 export async function markInvoicePaidAction(invoiceId: string) {

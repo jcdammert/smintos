@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { FabSheet } from "@/components/modules/FabSheet";
 
 const tabs = [
   { href: "/", label: "Home", icon: HomeIcon },
-  { href: "/estimates", label: "Estimates", icon: DocIcon },
+  { href: "/library", label: "Library", icon: LibraryIcon },
   { href: "/schedule", label: "Schedule", icon: CalendarIcon },
   { href: "/settings", label: "Account", icon: UserIcon },
 ];
@@ -26,17 +27,9 @@ export function BottomNav() {
           <NavTab key={t.href} {...t} active={isActive(t.href)} />
         ))}
 
-        {/* center floating action button */}
+        {/* center FAB → opens create sheet */}
         <div className="flex justify-center">
-          <Link
-            href="/estimates/new"
-            aria-label="New job"
-            className="-mt-7 flex h-14 w-14 items-center justify-center rounded-full bg-mint text-ink shadow-lg shadow-mint/40 transition active:scale-95"
-          >
-            <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="2.4">
-              <path d="M12 5v14M5 12h14" strokeLinecap="round" />
-            </svg>
-          </Link>
+          <FabSheet />
         </div>
 
         {/* right two tabs */}
@@ -79,11 +72,10 @@ function HomeIcon({ active }: { active: boolean }) {
     </svg>
   );
 }
-function DocIcon({ active }: { active: boolean }) {
+function LibraryIcon({ active }: { active: boolean }) {
   return (
     <svg viewBox="0 0 24 24" className="h-6 w-6" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8">
-      <path d="M6 2h8l4 4v16H6V2z" strokeLinejoin="round" />
-      <path d="M9 12h6M9 16h6" stroke={active ? "#fff" : "currentColor"} strokeLinecap="round" />
+      <path d="M4 4h5v16H4zM10 4h5v16h-5zM18 4l3 1-3 15-3-1z" strokeLinejoin="round" />
     </svg>
   );
 }
