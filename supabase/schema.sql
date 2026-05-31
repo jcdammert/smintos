@@ -12,6 +12,7 @@ create table if not exists public.users (
   ghl_location_id text,
   ghl_api_key text,
   business_name text,
+  timezone text,
   created_at timestamptz not null default now()
 );
 

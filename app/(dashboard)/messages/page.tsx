@@ -4,6 +4,7 @@ import { getMessageThreads } from "@/lib/data";
 import { ImportMessagesButton } from "@/components/modules/ImportMessagesButton";
 import { EmptyState } from "@/components/ui/Card";
 import { formatTime, formatDate } from "@/lib/format";
+import { getUserTimezone } from "@/lib/timezone";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -11,7 +12,10 @@ export const maxDuration = 60;
 export default async function MessagesPage() {
   const user = await getCurrentUser();
   if (!user) return null;
-  const threads = await getMessageThreads(user.id);
+  const [threads, tz] = await Promise.all([
+    getMessageThreads(user.id),
+    getUserTimezone(),
+  ]);
 
   return (
     <div className="space-y-4">
@@ -61,8 +65,8 @@ export default async function MessagesPage() {
                     </p>
                     <span className="flex-shrink-0 text-[11px] text-text-secondary">
                       {isFromToday
-                        ? formatTime(last.created_at)
-                        : formatDate(last.created_at)}
+                        ? formatTime(last.created_at, tz)
+                        : formatDate(last.created_at, tz)}
                     </span>
                   </div>
                   <p className="mt-0.5 truncate text-sm text-text-secondary">

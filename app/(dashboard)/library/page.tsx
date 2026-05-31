@@ -15,6 +15,7 @@ import { EstimateBadge, InvoiceBadge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/Button";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { getUserTimezone } from "@/lib/timezone";
 import type {
   Client,
   Product,
@@ -45,11 +46,12 @@ export default async function LibraryPage({
           ? "products"
           : "clients";
 
-  const [clients, estimates, invoices, products] = await Promise.all([
+  const [clients, estimates, invoices, products, tz] = await Promise.all([
     getClients(user.id),
     getEstimates(user.id),
     getInvoices(user.id),
     getProducts(user.id),
+    getUserTimezone(),
   ]);
 
   return (
@@ -71,8 +73,8 @@ export default async function LibraryPage({
       </nav>
 
       {tab === "clients" && <ClientsTab clients={clients} />}
-      {tab === "estimates" && <EstimatesTab estimates={estimates} />}
-      {tab === "invoices" && <InvoicesTab invoices={invoices} />}
+      {tab === "estimates" && <EstimatesTab estimates={estimates} tz={tz} />}
+      {tab === "invoices" && <InvoicesTab invoices={invoices} tz={tz} />}
       {tab === "products" && <ProductsTab products={products} />}
     </div>
   );
@@ -125,7 +127,13 @@ function ClientsTab({ clients }: { clients: Client[] }) {
   );
 }
 
-function EstimatesTab({ estimates }: { estimates: WithClient<Estimate>[] }) {
+function EstimatesTab({
+  estimates,
+  tz,
+}: {
+  estimates: WithClient<Estimate>[];
+  tz: string;
+}) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -148,7 +156,7 @@ function EstimatesTab({ estimates }: { estimates: WithClient<Estimate>[] }) {
                   {e.name || e.estimate_number} · {formatCurrency(e.total)}
                 </p>
                 <p className="truncate text-sm text-text-secondary">
-                  {e.client?.name ?? "—"} · {formatDate(e.created_at)}
+                  {e.client?.name ?? "—"} · {formatDate(e.created_at, tz)}
                   {e.viewed_at && <span className="ml-2 text-mint-dark">· 👁 Viewed</span>}
                 </p>
               </div>
@@ -161,7 +169,13 @@ function EstimatesTab({ estimates }: { estimates: WithClient<Estimate>[] }) {
   );
 }
 
-function InvoicesTab({ invoices }: { invoices: WithClient<Invoice>[] }) {
+function InvoicesTab({
+  invoices,
+  tz,
+}: {
+  invoices: WithClient<Invoice>[];
+  tz: string;
+}) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -184,7 +198,7 @@ function InvoicesTab({ invoices }: { invoices: WithClient<Invoice>[] }) {
                   {i.name || i.invoice_number} · {formatCurrency(i.total)}
                 </p>
                 <p className="truncate text-sm text-text-secondary">
-                  {i.client?.name ?? "—"} · due {formatDate(i.due_date)}
+                  {i.client?.name ?? "—"} · due {formatDate(i.due_date, tz)}
                   {i.viewed_at && <span className="ml-2 text-mint-dark">· 👁 Viewed</span>}
                 </p>
               </div>

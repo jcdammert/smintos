@@ -1,6 +1,7 @@
 import { getCurrentUser } from "@/lib/session";
 import { updateSettingsAction } from "@/lib/actions";
 import { signOut } from "@/lib/auth";
+import { getAllTimezones } from "@/lib/timezone";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -14,6 +15,9 @@ export default async function SettingsPage() {
   const keyPlaceholder = user.ghl_api_key
     ? "•".repeat(20) + " (saved)"
     : "Paste your GHL API key";
+
+  const timezones = getAllTimezones();
+  const currentTz = user.timezone ?? "America/New_York";
 
   async function signOutAction() {
     "use server";
@@ -50,6 +54,27 @@ export default async function SettingsPage() {
               disabled
               hint="Your login email can't be changed here."
             />
+
+            <label htmlFor="timezone" className="block">
+              <span className="mb-1.5 block text-sm font-medium text-text-primary">
+                Time zone
+              </span>
+              <select
+                id="timezone"
+                name="timezone"
+                defaultValue={currentTz}
+                className="min-h-[48px] w-full rounded-card border border-line bg-white px-4 text-base outline-none focus:border-mint focus:ring-2 focus:ring-mint/30"
+              >
+                {timezones.map((tz) => (
+                  <option key={tz} value={tz}>
+                    {tz.replace(/_/g, " ")}
+                  </option>
+                ))}
+              </select>
+              <span className="mt-1 block text-xs text-text-secondary">
+                All dates and times in the app will display in this zone.
+              </span>
+            </label>
           </div>
         </Card>
 

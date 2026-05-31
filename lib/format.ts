@@ -7,20 +7,22 @@ export function formatCurrency(amount: number): string {
   }).format(amount || 0);
 }
 
-export function formatDate(iso: string | null): string {
+export function formatDate(iso: string | null, tz?: string): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
+    timeZone: tz ?? "America/New_York",
   });
 }
 
-export function formatTime(iso: string | null): string {
+export function formatTime(iso: string | null, tz?: string): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
+    timeZone: tz ?? "America/New_York",
   });
 }
 

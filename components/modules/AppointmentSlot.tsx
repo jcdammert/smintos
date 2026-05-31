@@ -1,12 +1,18 @@
 import { formatTime } from "@/lib/format";
+import { getUserTimezone } from "@/lib/timezone";
 import type { WithClient, Appointment } from "@/types";
 
-export function AppointmentSlot({ item }: { item: WithClient<Appointment> }) {
+export async function AppointmentSlot({
+  item,
+}: {
+  item: WithClient<Appointment>;
+}) {
+  const tz = await getUserTimezone();
   return (
     <div className="flex items-stretch gap-3 rounded-card border border-line bg-white p-3">
       <div className="flex w-14 flex-shrink-0 flex-col items-center justify-center rounded-lg bg-bg">
         <span className="text-sm font-bold text-text-primary">
-          {formatTime(item.scheduled_at)}
+          {formatTime(item.scheduled_at, tz)}
         </span>
         <span className="text-[10px] text-text-secondary">
           {item.duration_minutes}m

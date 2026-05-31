@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/session";
 import { getInvoices } from "@/lib/data";
+import { getUserTimezone } from "@/lib/timezone";
 import { InvoiceBadge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/Card";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -10,7 +11,10 @@ export const dynamic = "force-dynamic";
 export default async function InvoicesPage() {
   const user = await getCurrentUser();
   if (!user) return null;
-  const invoices = await getInvoices(user.id);
+  const [invoices, tz] = await Promise.all([
+    getInvoices(user.id),
+    getUserTimezone(),
+  ]);
 
   return (
     <div className="space-y-4">
@@ -33,7 +37,7 @@ export default async function InvoicesPage() {
                   {i.name || i.invoice_number} · {formatCurrency(i.total)}
                 </p>
                 <p className="truncate text-sm text-text-secondary">
-                  {i.client?.name ?? "—"} · due {formatDate(i.due_date)}
+                  {i.client?.name ?? "—"} · due {formatDate(i.due_date, tz)}
                   {i.viewed_at && (
                     <span className="ml-2 text-mint-dark">· 👁 Viewed</span>
                   )}

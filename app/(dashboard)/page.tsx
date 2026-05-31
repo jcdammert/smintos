@@ -6,6 +6,7 @@ import {
   getAppointments,
   isToday,
 } from "@/lib/data";
+import { getUserTimezone } from "@/lib/timezone";
 import { greeting, formatTime, formatCurrency } from "@/lib/format";
 import { SectionHeader, EmptyState } from "@/components/ui/Card";
 import {
@@ -35,10 +36,11 @@ export default async function DashboardHome() {
     );
   }
 
-  const [estimates, invoices, appointments] = await Promise.all([
+  const [estimates, invoices, appointments, tz] = await Promise.all([
     getEstimates(user.id),
     getInvoices(user.id),
     getAppointments(user.id),
+    getUserTimezone(),
   ]);
 
   const estimatesOut = estimates.filter((e) => e.status === "sent").length;
@@ -154,7 +156,7 @@ export default async function DashboardHome() {
                   </p>
                 </div>
                 <span className="text-sm font-semibold text-text-primary">
-                  {formatTime(a.scheduled_at)}
+                  {formatTime(a.scheduled_at, tz)}
                 </span>
               </div>
             ))}

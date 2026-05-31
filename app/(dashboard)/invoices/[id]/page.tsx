@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { LineItemsTable } from "@/components/modules/LineItemsTable";
 import { InvoiceActions } from "@/components/modules/InvoiceActions";
 import { formatDate } from "@/lib/format";
+import { getUserTimezone } from "@/lib/timezone";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,10 @@ export default async function InvoiceDetailPage({
   const user = await getCurrentUser();
   if (!user) return null;
 
-  const invoice = await getInvoice(user.id, params.id);
+  const [invoice, tz] = await Promise.all([
+    getInvoice(user.id, params.id),
+    getUserTimezone(),
+  ]);
   if (!invoice) notFound();
 
   return (
@@ -64,7 +68,7 @@ export default async function InvoiceDetailPage({
           <div className="flex justify-between">
             <dt className="text-text-secondary">Due date</dt>
             <dd className="font-medium text-text-primary">
-              {formatDate(invoice.due_date)}
+              {formatDate(invoice.due_date, tz)}
             </dd>
           </div>
           <div className="flex justify-between">
@@ -72,7 +76,7 @@ export default async function InvoiceDetailPage({
             <dd className="font-medium">
               {invoice.viewed_at ? (
                 <span className="text-mint-dark">
-                  ✓ {formatDate(invoice.viewed_at)}
+                  ✓ {formatDate(invoice.viewed_at, tz)}
                 </span>
               ) : (
                 <span className="text-text-secondary">Not yet</span>
@@ -82,7 +86,7 @@ export default async function InvoiceDetailPage({
           <div className="flex justify-between">
             <dt className="text-text-secondary">Paid</dt>
             <dd className="font-medium text-text-primary">
-              {formatDate(invoice.paid_at)}
+              {formatDate(invoice.paid_at, tz)}
             </dd>
           </div>
           {invoice.estimate_id && (

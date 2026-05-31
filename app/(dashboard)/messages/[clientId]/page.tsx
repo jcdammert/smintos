@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/session";
 import { getClient, getMessagesForClient } from "@/lib/data";
 import { ReplyForm } from "@/components/modules/ReplyForm";
 import { formatTime, formatDate } from "@/lib/format";
+import { getUserTimezone } from "@/lib/timezone";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,10 @@ export default async function ThreadPage({
   const client = await getClient(user.id, params.clientId);
   if (!client) notFound();
 
-  const messages = await getMessagesForClient(user.id, client.id);
+  const [messages, tz] = await Promise.all([
+    getMessagesForClient(user.id, client.id),
+    getUserTimezone(),
+  ]);
 
   return (
     <div className="space-y-4 pb-32">
@@ -57,7 +61,7 @@ export default async function ThreadPage({
               <div key={m.id}>
                 {showDay && (
                   <p className="my-3 text-center text-[11px] font-medium text-text-secondary">
-                    {formatDate(m.created_at)}
+                    {formatDate(m.created_at, tz)}
                   </p>
                 )}
                 <div
@@ -80,7 +84,7 @@ export default async function ThreadPage({
                         isOutbound ? "text-ink/70" : "text-text-secondary"
                       }`}
                     >
-                      {formatTime(m.created_at)}
+                      {formatTime(m.created_at, tz)}
                       {m.channel ? ` · ${m.channel}` : ""}
                     </p>
                   </div>

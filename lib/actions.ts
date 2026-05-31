@@ -954,10 +954,12 @@ export async function updateSettingsAction(formData: FormData) {
   const ghl_location_id =
     String(formData.get("ghl_location_id") ?? "").trim() || null;
   const ghl_api_key_raw = String(formData.get("ghl_api_key") ?? "").trim();
+  const timezone = String(formData.get("timezone") ?? "").trim() || null;
 
   const update: Record<string, string | null> = {
     business_name,
     ghl_location_id,
+    timezone,
   };
   // Only overwrite the key if a new value was entered (masked field).
   if (ghl_api_key_raw && !ghl_api_key_raw.startsWith("•")) {

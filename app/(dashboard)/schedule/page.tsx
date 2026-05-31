@@ -4,6 +4,7 @@ import { AppointmentSlot } from "@/components/modules/AppointmentSlot";
 import { AppointmentForm } from "@/components/modules/AppointmentForm";
 import { EmptyState } from "@/components/ui/Card";
 import { formatDate } from "@/lib/format";
+import { getUserTimezone } from "@/lib/timezone";
 import type { WithClient, Appointment } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -16,9 +17,10 @@ export default async function SchedulePage({
   const user = await getCurrentUser();
   if (!user) return null;
 
-  const [appointments, clients] = await Promise.all([
+  const [appointments, clients, tz] = await Promise.all([
     getAppointments(user.id),
     getClients(user.id),
+    getUserTimezone(),
   ]);
 
   // Group upcoming appointments by day for a simple agenda view.
@@ -29,7 +31,7 @@ export default async function SchedulePage({
 
   const groups = new Map<string, WithClient<Appointment>[]>();
   for (const appt of upcoming) {
-    const key = formatDate(appt.scheduled_at);
+    const key = formatDate(appt.scheduled_at, tz);
     const list = groups.get(key) ?? [];
     list.push(appt);
     groups.set(key, list);

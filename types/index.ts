@@ -18,6 +18,7 @@ export interface UserRecord {
   ghl_location_id: string | null;
   ghl_api_key: string | null;
   business_name: string | null;
+  timezone: string | null;
   created_at: string;
 }
 

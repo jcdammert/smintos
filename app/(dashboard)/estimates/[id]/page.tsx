@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { LineItemsTable } from "@/components/modules/LineItemsTable";
 import { EstimateActions } from "@/components/modules/EstimateActions";
 import { formatDate } from "@/lib/format";
+import { getUserTimezone } from "@/lib/timezone";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,10 @@ export default async function EstimateDetailPage({
   const user = await getCurrentUser();
   if (!user) return null;
 
-  const estimate = await getEstimate(user.id, params.id);
+  const [estimate, tz] = await Promise.all([
+    getEstimate(user.id, params.id),
+    getUserTimezone(),
+  ]);
   if (!estimate) notFound();
 
   return (
@@ -64,13 +68,13 @@ export default async function EstimateDetailPage({
           <div className="flex justify-between">
             <dt className="text-text-secondary">Created</dt>
             <dd className="font-medium text-text-primary">
-              {formatDate(estimate.created_at)}
+              {formatDate(estimate.created_at, tz)}
             </dd>
           </div>
           <div className="flex justify-between">
             <dt className="text-text-secondary">Sent</dt>
             <dd className="font-medium text-text-primary">
-              {formatDate(estimate.sent_at)}
+              {formatDate(estimate.sent_at, tz)}
             </dd>
           </div>
           <div className="flex justify-between">
@@ -78,7 +82,7 @@ export default async function EstimateDetailPage({
             <dd className="font-medium">
               {estimate.viewed_at ? (
                 <span className="text-mint-dark">
-                  ✓ {formatDate(estimate.viewed_at)}
+                  ✓ {formatDate(estimate.viewed_at, tz)}
                 </span>
               ) : (
                 <span className="text-text-secondary">Not yet</span>
