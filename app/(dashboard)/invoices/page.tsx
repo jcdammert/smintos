@@ -30,7 +30,7 @@ export default async function InvoicesPage() {
             >
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold text-text-primary">
-                  {i.invoice_number} · {formatCurrency(i.total)}
+                  {i.name || i.invoice_number} · {formatCurrency(i.total)}
                 </p>
                 <p className="truncate text-sm text-text-secondary">
                   {i.client?.name ?? "—"} · due {formatDate(i.due_date)}

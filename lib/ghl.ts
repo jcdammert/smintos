@@ -7,6 +7,7 @@ import type {
   GhlInvoiceResponse,
   GhlListInvoicesResponse,
   GhlListEstimatesResponse,
+  GhlListProductsResponse,
   GhlCalendarEventInput,
   GhlCalendarEventResponse,
   GhlSendMessageInput,
@@ -165,6 +166,25 @@ export function listInvoices(
     method: "GET",
     apiKey,
     path: `/invoices/?${q.toString()}`,
+  });
+}
+
+/**
+ * List products for a location (used by the product catalog import).
+ */
+export function listProducts(
+  locationId: string,
+  apiKey: string,
+  params: { limit?: number; offset?: number } = {},
+): Promise<GhlResult<GhlListProductsResponse>> {
+  const q = new URLSearchParams();
+  q.set("locationId", locationId);
+  q.set("limit", String(params.limit ?? 100));
+  q.set("offset", String(params.offset ?? 0));
+  return ghlRequest<GhlListProductsResponse>({
+    method: "GET",
+    apiKey,
+    path: `/products/?${q.toString()}`,
   });
 }
 

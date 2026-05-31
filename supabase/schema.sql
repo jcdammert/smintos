@@ -39,6 +39,7 @@ create table if not exists public.estimates (
   client_id uuid not null references public.clients (id) on delete cascade,
   ghl_invoice_id text,
   estimate_number text not null,
+  name text,
   line_items jsonb not null default '[]'::jsonb,
   total numeric not null default 0,
   status text not null default 'draft'
@@ -59,6 +60,7 @@ create table if not exists public.invoices (
   estimate_id uuid references public.estimates (id) on delete set null,
   ghl_invoice_id text,
   invoice_number text not null,
+  name text,
   line_items jsonb not null default '[]'::jsonb,
   total numeric not null default 0,
   status text not null default 'sent'
@@ -85,6 +87,19 @@ create table if not exists public.appointments (
   created_at timestamptz not null default now()
 );
 create index if not exists appointments_user_id_idx on public.appointments (user_id);
+
+-- --- products --------------------------------------------------------------
+create table if not exists public.products (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users (id) on delete cascade,
+  ghl_product_id text,
+  name text not null,
+  description text,
+  unit_price numeric not null default 0,
+  created_at timestamptz not null default now(),
+  unique (user_id, ghl_product_id)
+);
+create index if not exists products_user_id_idx on public.products (user_id);
 
 -- --- messages --------------------------------------------------------------
 create table if not exists public.messages (
@@ -122,6 +137,7 @@ alter table public.estimates    enable row level security;
 alter table public.invoices     enable row level security;
 alter table public.appointments enable row level security;
 alter table public.messages     enable row level security;
+alter table public.products     enable row level security;
 
 -- Service role bypasses RLS automatically; these explicit policies make intent
 -- clear and allow auth.uid()-based access if you migrate to Supabase Auth.
@@ -165,4 +181,9 @@ create policy "owner_modify" on public.appointments
 create policy "owner_select" on public.messages
   for select using (auth.uid() = user_id);
 create policy "owner_modify" on public.messages
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+create policy "owner_select" on public.products
+  for select using (auth.uid() = user_id);
+create policy "owner_modify" on public.products
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

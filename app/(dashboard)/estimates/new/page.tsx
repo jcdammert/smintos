@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/session";
-import { getClients } from "@/lib/data";
+import { getClients, getProducts } from "@/lib/data";
 import { EstimateForm } from "@/components/modules/EstimateForm";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +12,10 @@ export default async function NewEstimatePage({
 }) {
   const user = await getCurrentUser();
   if (!user) return null;
-  const clients = await getClients(user.id);
+  const [clients, products] = await Promise.all([
+    getClients(user.id),
+    getProducts(user.id),
+  ]);
 
   return (
     <div className="space-y-5">
@@ -29,7 +32,11 @@ export default async function NewEstimatePage({
         </h1>
       </header>
 
-      <EstimateForm clients={clients} defaultClientId={searchParams.client} />
+      <EstimateForm
+        clients={clients}
+        products={products}
+        defaultClientId={searchParams.client}
+      />
     </div>
   );
 }

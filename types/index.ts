@@ -42,6 +42,7 @@ export interface Estimate {
   client_id: string;
   ghl_invoice_id: string | null;
   estimate_number: string;
+  name: string | null;
   line_items: LineItem[];
   total: number;
   status: EstimateStatus;
@@ -58,6 +59,7 @@ export interface Invoice {
   estimate_id: string | null;
   ghl_invoice_id: string | null;
   invoice_number: string;
+  name: string | null;
   line_items: LineItem[];
   total: number;
   status: InvoiceStatus;
@@ -65,6 +67,21 @@ export interface Invoice {
   viewed_at: string | null;
   paid_at: string | null;
   created_at: string;
+}
+
+export interface Product {
+  id: string;
+  user_id: string;
+  ghl_product_id: string | null;
+  name: string;
+  description: string | null;
+  unit_price: number;
+  created_at: string;
+}
+
+export interface GhlListProductsResponse {
+  products?: Array<Record<string, unknown>>;
+  total?: number;
 }
 
 export type MessageDirection = "inbound" | "outbound";

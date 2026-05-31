@@ -5,6 +5,7 @@ import type {
   Estimate,
   Invoice,
   Message,
+  Product,
   WithClient,
 } from "@/types";
 
@@ -99,6 +100,16 @@ export async function getAppointments(
     .eq("user_id", userId)
     .order("scheduled_at", { ascending: true });
   return (data as WithClient<Appointment>[] | null) ?? [];
+}
+
+export async function getProducts(userId: string): Promise<Product[]> {
+  const supabase = createServiceSupabase();
+  const { data } = await supabase
+    .from("products")
+    .select("*")
+    .eq("user_id", userId)
+    .order("name", { ascending: true });
+  return (data as Product[] | null) ?? [];
 }
 
 export interface MessageThread {

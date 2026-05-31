@@ -33,8 +33,13 @@ export default async function InvoiceDetailPage({
         </Link>
         <div className="min-w-0 flex-1">
           <h1 className="truncate font-display text-2xl font-bold text-text-primary">
-            {invoice.invoice_number}
+            {invoice.name || invoice.invoice_number}
           </h1>
+          {invoice.name && (
+            <p className="truncate text-xs text-text-secondary">
+              {invoice.invoice_number}
+            </p>
+          )}
         </div>
         <InvoiceBadge status={invoice.status} />
       </header>

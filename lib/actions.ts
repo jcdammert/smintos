@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createServiceSupabase } from "@/lib/supabase";
 import { getCurrentUser, hasGhlCreds } from "@/lib/session";
-import { shortNumber } from "@/lib/format";
+import { shortNumber, stripHtml } from "@/lib/format";
 import {
   createContact,
   createInvoice,
@@ -13,6 +13,7 @@ import {
   listContacts,
   listInvoices as ghlListInvoices,
   listEstimates as ghlListEstimates,
+  listProducts as ghlListProducts,
   sendConversationMessage,
   searchConversations,
   listConversationMessages,
@@ -26,29 +27,43 @@ import type { LineItem } from "@/types";
  */
 function mapGhlLineItems(rawItems: unknown): LineItem[] {
   if (!Array.isArray(rawItems)) return [];
-  return rawItems.map((raw, i) => {
-    const r = (raw ?? {}) as Record<string, unknown>;
-    const priceObj = r.price as { amount?: number } | undefined;
-    const description =
-      (r.name as string | undefined) ||
-      (r.description as string | undefined) ||
-      (r.productName as string | undefined) ||
-      "Item";
-    return {
-      id: String(r._id ?? r.id ?? `imp-${i}`),
-      description,
-      quantity: Number(r.qty ?? r.quantity ?? 1) || 1,
-      unitPrice:
+  return rawItems
+    .map((raw, i) => {
+      const r = (raw ?? {}) as Record<string, unknown>;
+      const priceObj =
+        typeof r.price === "object" && r.price !== null
+          ? (r.price as { amount?: number })
+          : undefined;
+
+      // Prefer name; fall back to (HTML-stripped) description.
+      const nameStr = stripHtml(r.name as string | undefined);
+      const descStr = stripHtml(r.description as string | undefined);
+      const productName = stripHtml(r.productName as string | undefined);
+      const description = nameStr || descStr || productName || "Item";
+
+      const qty = Number(r.qty ?? r.quantity ?? 1) || 1;
+      const unitPrice =
         Number(
           r.amount ??
             r.unitPrice ??
             r.unit_price ??
             priceObj?.amount ??
-            (r.price as number | undefined) ??
-            0,
-        ) || 0,
-    };
-  });
+            (typeof r.price === "number" ? r.price : undefined) ??
+            // Some GHL items only expose itemTotalAmount with no per-unit price.
+            (r.itemTotalAmount !== undefined
+              ? Number(r.itemTotalAmount) / qty
+              : 0),
+        ) || 0;
+
+      return {
+        id: String(r._id ?? r.id ?? `imp-${i}`),
+        description,
+        quantity: qty,
+        unitPrice,
+      };
+    })
+    // Filter out totally blank items (no description AND no price).
+    .filter((i) => i.description !== "Item" || i.unitPrice > 0);
 }
 
 /**
@@ -188,6 +203,7 @@ export async function createEstimateAction(formData: FormData) {
   if (!user) redirect("/login");
 
   const clientId = String(formData.get("client_id") ?? "");
+  const name = String(formData.get("name") ?? "").trim() || null;
   const rawItems = String(formData.get("line_items") ?? "[]");
   if (!clientId) return;
 
@@ -206,6 +222,7 @@ export async function createEstimateAction(formData: FormData) {
       user_id: user.id,
       client_id: clientId,
       estimate_number: shortNumber("EST"),
+      name,
       line_items: lineItems,
       total,
       status: "draft",
@@ -321,6 +338,7 @@ export async function createInvoiceAction(formData: FormData) {
   if (!user) redirect("/login");
 
   const clientId = String(formData.get("client_id") ?? "");
+  const name = String(formData.get("name") ?? "").trim() || null;
   const rawItems = String(formData.get("line_items") ?? "[]");
   if (!clientId) return;
 
@@ -345,7 +363,7 @@ export async function createInvoiceAction(formData: FormData) {
   if (hasGhlCreds(user) && client?.ghl_contact_id) {
     const res = await createInvoice(user.ghl_location_id, user.ghl_api_key, {
       contactId: client.ghl_contact_id,
-      name: `Invoice ${shortNumber("INV")}`,
+      name: name ?? `Invoice ${shortNumber("INV")}`,
       items: lineItems.map((i) => ({
         name: i.description,
         qty: i.quantity,
@@ -363,6 +381,7 @@ export async function createInvoiceAction(formData: FormData) {
       client_id: clientId,
       ghl_invoice_id: ghlInvoiceId,
       invoice_number: shortNumber("INV"),
+      name,
       line_items: lineItems,
       total,
       status: "sent",
@@ -588,8 +607,8 @@ export async function importGhlInvoicesAction(): Promise<{
         ghl_invoice_id: ghlId,
         invoice_number:
           (inv.invoiceNumber as string | undefined) ??
-          (inv.name as string | undefined) ??
           `INV-${ghlId.slice(-6)}`,
+        name: (inv.name as string | undefined) ?? null,
         line_items: mapGhlLineItems(
           inv.invoiceItems ?? inv.items ?? inv.lineItems,
         ),
@@ -685,8 +704,8 @@ export async function importGhlEstimatesAction(): Promise<{
         ghl_invoice_id: ghlId,
         estimate_number:
           (e.estimateNumber as string | undefined) ??
-          (e.name as string | undefined) ??
           `EST-${ghlId.slice(-6)}`,
+        name: (e.name as string | undefined) ?? null,
         line_items: mapGhlLineItems(e.invoiceItems ?? e.items ?? e.lineItems),
         total: Number(e.total ?? e.amount ?? 0) || 0,
         status,
@@ -712,6 +731,75 @@ export async function importGhlEstimatesAction(): Promise<{
   revalidatePath("/estimates");
   revalidatePath("/library");
   return { imported, skipped };
+}
+
+/**
+ * Pull existing products from GHL into Smintos's product catalog.
+ */
+export async function importGhlProductsAction(): Promise<{
+  imported: number;
+  error?: string;
+}> {
+  const user = await getCurrentUser();
+  if (!user) return { imported: 0, error: "Not signed in." };
+  if (!hasGhlCreds(user))
+    return { imported: 0, error: "Connect GoHighLevel first." };
+
+  const supabase = createServiceSupabase();
+  const PAGE = 100;
+  const MAX_PAGES = 25;
+  let imported = 0;
+  let offset = 0;
+
+  for (let p = 0; p < MAX_PAGES; p++) {
+    const res = await ghlListProducts(user.ghl_location_id, user.ghl_api_key, {
+      limit: PAGE,
+      offset,
+    });
+    if (!res.ok || !res.data)
+      return { imported, error: res.error ?? "GHL fetch failed." };
+
+    const items = (res.data.products ?? []) as Array<Record<string, unknown>>;
+    if (items.length === 0) break;
+
+    const rows = items
+      .map((prod) => {
+        const ghlId = String(prod._id ?? prod.id ?? "");
+        if (!ghlId) return null;
+        // Default price = first item in `prices` array (GHL products can have
+        // multiple variants); fall back to top-level amount.
+        const pricesArr = Array.isArray(prod.prices)
+          ? (prod.prices as Array<Record<string, unknown>>)
+          : [];
+        const defaultPrice = pricesArr[0];
+        const unitPrice =
+          Number(
+            defaultPrice?.amount ?? prod.amount ?? prod.price ?? 0,
+          ) || 0;
+        return {
+          user_id: user.id,
+          ghl_product_id: ghlId,
+          name: stripHtml(prod.name as string | undefined) || "Unnamed product",
+          description: stripHtml(prod.description as string | undefined) || null,
+          unit_price: unitPrice,
+        };
+      })
+      .filter((r): r is NonNullable<typeof r> => r !== null);
+
+    if (rows.length > 0) {
+      const { error } = await supabase
+        .from("products")
+        .upsert(rows, { onConflict: "user_id,ghl_product_id" });
+      if (error) return { imported, error: error.message };
+      imported += rows.length;
+    }
+
+    if (items.length < PAGE) break;
+    offset += PAGE;
+  }
+
+  revalidatePath("/library");
+  return { imported };
 }
 
 async function resolveClientByGhlId(

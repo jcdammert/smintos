@@ -3,8 +3,9 @@
 import { useState, useTransition } from "react";
 import { createEstimateAction } from "@/lib/actions";
 import { Button } from "@/components/ui/Button";
+import { ProductPicker } from "@/components/modules/ProductPicker";
 import { formatCurrency } from "@/lib/format";
-import type { Client, LineItem } from "@/types";
+import type { Client, LineItem, Product } from "@/types";
 
 let idCounter = 0;
 function newItem(): LineItem {
@@ -19,12 +20,15 @@ function newItem(): LineItem {
 
 export function EstimateForm({
   clients,
+  products,
   defaultClientId,
 }: {
   clients: Client[];
+  products: Product[];
   defaultClientId?: string;
 }) {
   const [clientId, setClientId] = useState(defaultClientId ?? "");
+  const [name, setName] = useState("");
   const [items, setItems] = useState<LineItem[]>([newItem()]);
   const [pending, start] = useTransition();
 
@@ -36,11 +40,21 @@ export function EstimateForm({
   function remove(id: string) {
     setItems((prev) => (prev.length > 1 ? prev.filter((i) => i.id !== id) : prev));
   }
+  function addProductAsItem(item: LineItem) {
+    setItems((prev) => {
+      // If the first row is empty, replace it; otherwise append.
+      if (prev.length === 1 && !prev[0].description && prev[0].unitPrice === 0) {
+        return [item];
+      }
+      return [...prev, item];
+    });
+  }
 
   function submit() {
     if (!clientId) return;
     const fd = new FormData();
     fd.set("client_id", clientId);
+    fd.set("name", name);
     fd.set("line_items", JSON.stringify(items.filter((i) => i.description)));
     start(() => createEstimateAction(fd));
   }
@@ -55,6 +69,18 @@ export function EstimateForm({
 
   return (
     <div className="space-y-5">
+      <label className="block">
+        <span className="mb-1.5 block text-sm font-medium text-text-primary">
+          Estimate name
+        </span>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g. Full-vehicle ceramic tint"
+          className="min-h-[48px] w-full rounded-card border border-line bg-white px-4 text-base outline-none focus:border-mint focus:ring-2 focus:ring-mint/30"
+        />
+      </label>
+
       <label className="block">
         <span className="mb-1.5 block text-sm font-medium text-text-primary">
           Client
@@ -77,16 +103,20 @@ export function EstimateForm({
         <span className="block text-sm font-medium text-text-primary">
           Line items
         </span>
+
+        <ProductPicker products={products} onPick={addProductAsItem} />
+
         {items.map((item) => (
           <div
             key={item.id}
             className="space-y-2 rounded-card border border-line bg-white p-3"
           >
-            <input
+            <textarea
               value={item.description}
               onChange={(e) => update(item.id, { description: e.target.value })}
               placeholder="Description (e.g. Driveway pressure wash)"
-              className="min-h-[44px] w-full rounded-lg border border-line px-3 text-base outline-none focus:border-mint"
+              rows={2}
+              className="min-h-[44px] w-full resize-y rounded-lg border border-line px-3 py-2 text-base outline-none focus:border-mint"
             />
             <div className="flex items-center gap-2">
               <label className="flex-1">
@@ -138,7 +168,7 @@ export function EstimateForm({
           onClick={() => setItems((prev) => [...prev, newItem()])}
           className="min-h-[44px] w-full rounded-card border border-dashed border-line text-sm font-semibold text-mint-dark"
         >
-          + Add line item
+          + Add blank line
         </button>
       </div>
 

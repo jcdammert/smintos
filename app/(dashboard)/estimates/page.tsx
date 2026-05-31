@@ -34,7 +34,7 @@ export default async function EstimatesPage() {
             >
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold text-text-primary">
-                  {e.estimate_number} · {formatCurrency(e.total)}
+                  {e.name || e.estimate_number} · {formatCurrency(e.total)}
                 </p>
                 <p className="truncate text-sm text-text-secondary">
                   {e.client?.name ?? "—"} · {formatDate(e.created_at)}

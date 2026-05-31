@@ -1,20 +1,32 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/session";
-import { getClients, getEstimates, getInvoices } from "@/lib/data";
+import {
+  getClients,
+  getEstimates,
+  getInvoices,
+  getProducts,
+} from "@/lib/data";
 import { ClientRow } from "@/components/modules/ClientRow";
 import { ImportContactsButton } from "@/components/modules/ImportContactsButton";
 import { ImportEstimatesButton } from "@/components/modules/ImportEstimatesButton";
 import { ImportInvoicesButton } from "@/components/modules/ImportInvoicesButton";
+import { ImportProductsButton } from "@/components/modules/ImportProductsButton";
 import { EstimateBadge, InvoiceBadge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/Button";
 import { formatCurrency, formatDate } from "@/lib/format";
-import type { Client, WithClient, Estimate, Invoice } from "@/types";
+import type {
+  Client,
+  Product,
+  WithClient,
+  Estimate,
+  Invoice,
+} from "@/types";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-type Tab = "clients" | "estimates" | "invoices";
+type Tab = "clients" | "estimates" | "invoices" | "products";
 
 export default async function LibraryPage({
   searchParams,
@@ -29,12 +41,15 @@ export default async function LibraryPage({
       ? "estimates"
       : searchParams.tab === "invoices"
         ? "invoices"
-        : "clients";
+        : searchParams.tab === "products"
+          ? "products"
+          : "clients";
 
-  const [clients, estimates, invoices] = await Promise.all([
+  const [clients, estimates, invoices, products] = await Promise.all([
     getClients(user.id),
     getEstimates(user.id),
     getInvoices(user.id),
+    getProducts(user.id),
   ]);
 
   return (
@@ -44,35 +59,21 @@ export default async function LibraryPage({
           Library
         </h1>
         <p className="mt-1 text-sm text-text-secondary">
-          All your customers, estimates, and invoices in one place.
+          Everything in one place.
         </p>
       </header>
 
-      {/* Tab bar */}
       <nav className="flex gap-1 rounded-card border border-line bg-white p-1">
-        <TabLink
-          href="/library?tab=clients"
-          label="Clients"
-          count={clients.length}
-          active={tab === "clients"}
-        />
-        <TabLink
-          href="/library?tab=estimates"
-          label="Estimates"
-          count={estimates.length}
-          active={tab === "estimates"}
-        />
-        <TabLink
-          href="/library?tab=invoices"
-          label="Invoices"
-          count={invoices.length}
-          active={tab === "invoices"}
-        />
+        <TabLink href="/library?tab=clients" label="Clients" count={clients.length} active={tab === "clients"} />
+        <TabLink href="/library?tab=estimates" label="Estimates" count={estimates.length} active={tab === "estimates"} />
+        <TabLink href="/library?tab=invoices" label="Invoices" count={invoices.length} active={tab === "invoices"} />
+        <TabLink href="/library?tab=products" label="Products" count={products.length} active={tab === "products"} />
       </nav>
 
       {tab === "clients" && <ClientsTab clients={clients} />}
       {tab === "estimates" && <EstimatesTab estimates={estimates} />}
       {tab === "invoices" && <InvoicesTab invoices={invoices} />}
+      {tab === "products" && <ProductsTab products={products} />}
     </div>
   );
 }
@@ -92,12 +93,10 @@ function TabLink({
     <Link
       href={href}
       className={`flex min-h-[44px] flex-1 flex-col items-center justify-center rounded-lg text-xs font-semibold transition ${
-        active
-          ? "bg-mint text-ink"
-          : "text-text-secondary"
+        active ? "bg-mint text-ink" : "text-text-secondary"
       }`}
     >
-      <span className="text-sm">{label}</span>
+      <span className="text-[13px]">{label}</span>
       <span className={`text-[10px] ${active ? "text-ink/70" : "text-text-secondary/70"}`}>
         {count}
       </span>
@@ -114,10 +113,7 @@ function ClientsTab({ clients }: { clients: Client[] }) {
       </div>
       <ImportContactsButton />
       {clients.length === 0 ? (
-        <EmptyState
-          title="No clients yet"
-          subtitle="Add one manually, or pull from GoHighLevel."
-        />
+        <EmptyState title="No clients yet" subtitle="Add one manually, or pull from GoHighLevel." />
       ) : (
         <div className="space-y-2">
           {clients.map((c) => (
@@ -138,10 +134,7 @@ function EstimatesTab({ estimates }: { estimates: WithClient<Estimate>[] }) {
       </div>
       <ImportEstimatesButton />
       {estimates.length === 0 ? (
-        <EmptyState
-          title="No estimates yet"
-          subtitle="Create your first estimate and send it to a client."
-        />
+        <EmptyState title="No estimates yet" subtitle="Create your first estimate and send it to a client." />
       ) : (
         <div className="space-y-2">
           {estimates.map((e) => (
@@ -152,13 +145,11 @@ function EstimatesTab({ estimates }: { estimates: WithClient<Estimate>[] }) {
             >
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold text-text-primary">
-                  {e.estimate_number} · {formatCurrency(e.total)}
+                  {e.name || e.estimate_number} · {formatCurrency(e.total)}
                 </p>
                 <p className="truncate text-sm text-text-secondary">
                   {e.client?.name ?? "—"} · {formatDate(e.created_at)}
-                  {e.viewed_at && (
-                    <span className="ml-2 text-mint-dark">· 👁 Viewed</span>
-                  )}
+                  {e.viewed_at && <span className="ml-2 text-mint-dark">· 👁 Viewed</span>}
                 </p>
               </div>
               <EstimateBadge status={e.status} />
@@ -179,10 +170,7 @@ function InvoicesTab({ invoices }: { invoices: WithClient<Invoice>[] }) {
       </div>
       <ImportInvoicesButton />
       {invoices.length === 0 ? (
-        <EmptyState
-          title="No invoices yet"
-          subtitle="Create one directly or convert from an approved estimate."
-        />
+        <EmptyState title="No invoices yet" subtitle="Create one directly or convert from an approved estimate." />
       ) : (
         <div className="space-y-2">
           {invoices.map((i) => (
@@ -193,17 +181,51 @@ function InvoicesTab({ invoices }: { invoices: WithClient<Invoice>[] }) {
             >
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold text-text-primary">
-                  {i.invoice_number} · {formatCurrency(i.total)}
+                  {i.name || i.invoice_number} · {formatCurrency(i.total)}
                 </p>
                 <p className="truncate text-sm text-text-secondary">
                   {i.client?.name ?? "—"} · due {formatDate(i.due_date)}
-                  {i.viewed_at && (
-                    <span className="ml-2 text-mint-dark">· 👁 Viewed</span>
-                  )}
+                  {i.viewed_at && <span className="ml-2 text-mint-dark">· 👁 Viewed</span>}
                 </p>
               </div>
               <InvoiceBadge status={i.status} />
             </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProductsTab({ products }: { products: Product[] }) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-sm text-text-secondary">{products.length} total</span>
+      </div>
+      <ImportProductsButton />
+      {products.length === 0 ? (
+        <EmptyState
+          title="No products yet"
+          subtitle="Add products in GoHighLevel and tap import — they'll be selectable when building estimates and invoices."
+        />
+      ) : (
+        <div className="space-y-2">
+          {products.map((p) => (
+            <div
+              key={p.id}
+              className="flex items-center justify-between gap-3 rounded-card border border-line bg-white p-3"
+            >
+              <div className="min-w-0">
+                <p className="truncate font-semibold text-text-primary">{p.name}</p>
+                {p.description && (
+                  <p className="truncate text-xs text-text-secondary">{p.description}</p>
+                )}
+              </div>
+              <span className="flex-shrink-0 font-bold text-mint-dark">
+                {formatCurrency(p.unit_price)}
+              </span>
+            </div>
           ))}
         </div>
       )}

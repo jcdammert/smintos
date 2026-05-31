@@ -33,8 +33,13 @@ export default async function EstimateDetailPage({
         </Link>
         <div className="min-w-0 flex-1">
           <h1 className="truncate font-display text-2xl font-bold text-text-primary">
-            {estimate.estimate_number}
+            {estimate.name || estimate.estimate_number}
           </h1>
+          {estimate.name && (
+            <p className="truncate text-xs text-text-secondary">
+              {estimate.estimate_number}
+            </p>
+          )}
         </div>
         <EstimateBadge status={estimate.status} />
       </header>
