@@ -186,6 +186,17 @@ export interface GhlConversationsSearchResponse {
   total?: number;
 }
 
+export interface GhlListInvoicesResponse {
+  invoices?: Array<Record<string, unknown>>;
+  total?: number;
+}
+
+export interface GhlListEstimatesResponse {
+  estimates?: Array<Record<string, unknown>>;
+  data?: Array<Record<string, unknown>>;
+  totalCount?: number;
+}
+
 export interface GhlMessagesPageResponse {
   lastMessageId?: string;
   nextPage?: boolean;

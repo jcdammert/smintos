@@ -46,7 +46,8 @@ create table if not exists public.estimates (
   sent_at timestamptz,
   viewed_at timestamptz,
   expires_at timestamptz,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  unique (user_id, ghl_invoice_id)
 );
 create index if not exists estimates_user_id_idx on public.estimates (user_id);
 
@@ -65,7 +66,8 @@ create table if not exists public.invoices (
   due_date timestamptz,
   viewed_at timestamptz,
   paid_at timestamptz,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  unique (user_id, ghl_invoice_id)
 );
 create index if not exists invoices_user_id_idx on public.invoices (user_id);
 

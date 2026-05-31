@@ -3,6 +3,8 @@ import { getCurrentUser } from "@/lib/session";
 import { getClients, getEstimates, getInvoices } from "@/lib/data";
 import { ClientRow } from "@/components/modules/ClientRow";
 import { ImportContactsButton } from "@/components/modules/ImportContactsButton";
+import { ImportEstimatesButton } from "@/components/modules/ImportEstimatesButton";
+import { ImportInvoicesButton } from "@/components/modules/ImportInvoicesButton";
 import { EstimateBadge, InvoiceBadge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/Button";
@@ -134,6 +136,7 @@ function EstimatesTab({ estimates }: { estimates: WithClient<Estimate>[] }) {
         <span className="text-sm text-text-secondary">{estimates.length} total</span>
         <LinkButton href="/estimates/new" size="sm">+ New</LinkButton>
       </div>
+      <ImportEstimatesButton />
       {estimates.length === 0 ? (
         <EmptyState
           title="No estimates yet"
@@ -174,6 +177,7 @@ function InvoicesTab({ invoices }: { invoices: WithClient<Invoice>[] }) {
         <span className="text-sm text-text-secondary">{invoices.length} total</span>
         <LinkButton href="/invoices/new" size="sm">+ New</LinkButton>
       </div>
+      <ImportInvoicesButton />
       {invoices.length === 0 ? (
         <EmptyState
           title="No invoices yet"

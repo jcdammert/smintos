@@ -164,18 +164,6 @@ export default async function DashboardHome() {
         )}
       </section>
 
-      {/* 6. Messages preview */}
-      <section>
-        <SectionHeader title="Messages" />
-        <div className="rounded-card border border-line bg-white p-4 text-center text-sm text-text-secondary">
-          Connect GoHighLevel in{" "}
-          <Link href="/settings" className="font-semibold text-mint-dark">
-            Settings
-          </Link>{" "}
-          to see SMS threads here.
-        </div>
-      </section>
-
       {/* lifetime total footer */}
       <p className="pb-2 text-center text-xs text-text-secondary">
         {invoices.filter((i) => i.status === "paid").length} jobs closed ·{" "}

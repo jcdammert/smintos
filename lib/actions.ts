@@ -11,6 +11,8 @@ import {
   updateInvoice,
   createCalendarEvent,
   listContacts,
+  listInvoices as ghlListInvoices,
+  listEstimates as ghlListEstimates,
   sendConversationMessage,
   searchConversations,
   listConversationMessages,
@@ -492,6 +494,211 @@ export async function sendMessageAction(
   revalidatePath(`/messages/${client.id}`);
   revalidatePath("/messages");
   return { ok: true };
+}
+
+/**
+ * Pull existing invoices from GHL into Smintos.
+ * Idempotent via the (user_id, ghl_invoice_id) unique constraint.
+ */
+export async function importGhlInvoicesAction(): Promise<{
+  imported: number;
+  skipped: number;
+  error?: string;
+}> {
+  const user = await getCurrentUser();
+  if (!user) return { imported: 0, skipped: 0, error: "Not signed in." };
+  if (!hasGhlCreds(user))
+    return { imported: 0, skipped: 0, error: "Connect GoHighLevel first." };
+
+  const supabase = createServiceSupabase();
+  const PAGE = 100;
+  const MAX_PAGES = 25;
+  let imported = 0;
+  let skipped = 0;
+  let offset = 0;
+
+  for (let p = 0; p < MAX_PAGES; p++) {
+    const res = await ghlListInvoices(user.ghl_location_id, user.ghl_api_key, {
+      limit: PAGE,
+      offset,
+    });
+    if (!res.ok || !res.data)
+      return { imported, skipped, error: res.error ?? "GHL fetch failed." };
+
+    const items = (res.data.invoices ?? []) as Array<Record<string, unknown>>;
+    if (items.length === 0) break;
+
+    const rows: Array<Record<string, unknown>> = [];
+    for (const inv of items) {
+      const ghlId = String(inv._id ?? inv.id ?? "");
+      if (!ghlId) continue;
+      const contactId =
+        (inv.contactDetails as { id?: string } | undefined)?.id ??
+        (inv.contactId as string | undefined) ??
+        null;
+      const clientId = await resolveClientByGhlId(supabase, user.id, contactId);
+      if (!clientId) {
+        skipped += 1;
+        continue;
+      }
+
+      const statusRaw = String(inv.status ?? "sent").toLowerCase();
+      const status =
+        statusRaw === "paid"
+          ? "paid"
+          : statusRaw === "overdue"
+            ? "overdue"
+            : "sent";
+
+      rows.push({
+        user_id: user.id,
+        client_id: clientId,
+        ghl_invoice_id: ghlId,
+        invoice_number:
+          (inv.invoiceNumber as string | undefined) ??
+          (inv.name as string | undefined) ??
+          `INV-${ghlId.slice(-6)}`,
+        line_items:
+          (Array.isArray(inv.invoiceItems) && inv.invoiceItems) ||
+          (Array.isArray(inv.items) && inv.items) ||
+          [],
+        total: Number(inv.total ?? inv.amount ?? 0) || 0,
+        status,
+        due_date: (inv.dueDate as string | undefined) ?? null,
+        paid_at:
+          status === "paid"
+            ? ((inv.updatedAt as string | undefined) ??
+              new Date().toISOString())
+            : null,
+      });
+    }
+
+    if (rows.length > 0) {
+      const { error } = await supabase
+        .from("invoices")
+        .upsert(rows, { onConflict: "user_id,ghl_invoice_id" });
+      if (error) return { imported, skipped, error: error.message };
+      imported += rows.length;
+    }
+
+    if (items.length < PAGE) break;
+    offset += PAGE;
+  }
+
+  revalidatePath("/invoices");
+  revalidatePath("/library");
+  return { imported, skipped };
+}
+
+/**
+ * Pull existing estimates from GHL into Smintos.
+ */
+export async function importGhlEstimatesAction(): Promise<{
+  imported: number;
+  skipped: number;
+  error?: string;
+}> {
+  const user = await getCurrentUser();
+  if (!user) return { imported: 0, skipped: 0, error: "Not signed in." };
+  if (!hasGhlCreds(user))
+    return { imported: 0, skipped: 0, error: "Connect GoHighLevel first." };
+
+  const supabase = createServiceSupabase();
+  const PAGE = 100;
+  const MAX_PAGES = 25;
+  let imported = 0;
+  let skipped = 0;
+  let offset = 0;
+
+  for (let p = 0; p < MAX_PAGES; p++) {
+    const res = await ghlListEstimates(user.ghl_location_id, user.ghl_api_key, {
+      limit: PAGE,
+      offset,
+    });
+    if (!res.ok || !res.data)
+      return { imported, skipped, error: res.error ?? "GHL fetch failed." };
+
+    const items =
+      ((res.data.estimates ?? res.data.data) as
+        | Array<Record<string, unknown>>
+        | undefined) ?? [];
+    if (items.length === 0) break;
+
+    const rows: Array<Record<string, unknown>> = [];
+    for (const e of items) {
+      const ghlId = String(e._id ?? e.id ?? "");
+      if (!ghlId) continue;
+      const contactId =
+        (e.contactDetails as { id?: string } | undefined)?.id ??
+        (e.contactId as string | undefined) ??
+        null;
+      const clientId = await resolveClientByGhlId(supabase, user.id, contactId);
+      if (!clientId) {
+        skipped += 1;
+        continue;
+      }
+
+      const statusRaw = String(e.status ?? "draft").toLowerCase();
+      const status =
+        statusRaw === "accepted" || statusRaw === "approved"
+          ? "approved"
+          : statusRaw === "declined" || statusRaw === "rejected"
+            ? "declined"
+            : statusRaw === "sent"
+              ? "sent"
+              : "draft";
+
+      rows.push({
+        user_id: user.id,
+        client_id: clientId,
+        ghl_invoice_id: ghlId,
+        estimate_number:
+          (e.estimateNumber as string | undefined) ??
+          (e.name as string | undefined) ??
+          `EST-${ghlId.slice(-6)}`,
+        line_items:
+          (Array.isArray(e.invoiceItems) && e.invoiceItems) ||
+          (Array.isArray(e.items) && e.items) ||
+          [],
+        total: Number(e.total ?? e.amount ?? 0) || 0,
+        status,
+        sent_at:
+          status === "sent" || status === "approved" || status === "declined"
+            ? ((e.updatedAt as string | undefined) ?? new Date().toISOString())
+            : null,
+      });
+    }
+
+    if (rows.length > 0) {
+      const { error } = await supabase
+        .from("estimates")
+        .upsert(rows, { onConflict: "user_id,ghl_invoice_id" });
+      if (error) return { imported, skipped, error: error.message };
+      imported += rows.length;
+    }
+
+    if (items.length < PAGE) break;
+    offset += PAGE;
+  }
+
+  revalidatePath("/estimates");
+  revalidatePath("/library");
+  return { imported, skipped };
+}
+
+async function resolveClientByGhlId(
+  supabase: ReturnType<typeof createServiceSupabase>,
+  userId: string,
+  ghlContactId: string | null | undefined,
+): Promise<string | null> {
+  if (!ghlContactId) return null;
+  const { data } = await supabase
+    .from("clients")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("ghl_contact_id", ghlContactId)
+    .maybeSingle();
+  return data?.id ?? null;
 }
 
 /**

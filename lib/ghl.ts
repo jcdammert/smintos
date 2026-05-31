@@ -5,6 +5,8 @@ import type {
   GhlListContactsResponse,
   GhlInvoiceInput,
   GhlInvoiceResponse,
+  GhlListInvoicesResponse,
+  GhlListEstimatesResponse,
   GhlCalendarEventInput,
   GhlCalendarEventResponse,
   GhlSendMessageInput,
@@ -143,6 +145,46 @@ export function updateInvoice(
     apiKey,
     path: `/invoices/${invoiceId}`,
     body: { ...data, altId: locationId, altType: "location" },
+  });
+}
+
+/**
+ * List invoices for a location (used by the historical import).
+ */
+export function listInvoices(
+  locationId: string,
+  apiKey: string,
+  params: { limit?: number; offset?: number } = {},
+): Promise<GhlResult<GhlListInvoicesResponse>> {
+  const q = new URLSearchParams();
+  q.set("altId", locationId);
+  q.set("altType", "location");
+  q.set("limit", String(params.limit ?? 100));
+  q.set("offset", String(params.offset ?? 0));
+  return ghlRequest<GhlListInvoicesResponse>({
+    method: "GET",
+    apiKey,
+    path: `/invoices/?${q.toString()}`,
+  });
+}
+
+/**
+ * List estimates for a location.
+ */
+export function listEstimates(
+  locationId: string,
+  apiKey: string,
+  params: { limit?: number; offset?: number } = {},
+): Promise<GhlResult<GhlListEstimatesResponse>> {
+  const q = new URLSearchParams();
+  q.set("altId", locationId);
+  q.set("altType", "location");
+  q.set("limit", String(params.limit ?? 100));
+  q.set("offset", String(params.offset ?? 0));
+  return ghlRequest<GhlListEstimatesResponse>({
+    method: "GET",
+    apiKey,
+    path: `/invoices/estimate/list?${q.toString()}`,
   });
 }
 
