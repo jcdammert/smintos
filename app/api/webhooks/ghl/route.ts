@@ -88,6 +88,41 @@ async function resolveUserId(
   return data?.id ?? null;
 }
 
+async function resolveClientId(
+  supabase: ReturnType<typeof createServiceSupabase>,
+  userId: string,
+  ghlContactId: string | null | undefined,
+): Promise<string | null> {
+  if (!ghlContactId) return null;
+  const { data } = await supabase
+    .from("clients")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("ghl_contact_id", ghlContactId)
+    .maybeSingle();
+  return data?.id ?? null;
+}
+
+function pickArray(obj: Record<string, unknown>, keys: string[]): unknown[] {
+  for (const k of keys) {
+    const v = obj[k];
+    if (Array.isArray(v)) return v;
+  }
+  return [];
+}
+
+function pickNumber(
+  obj: Record<string, unknown>,
+  keys: string[],
+): number {
+  for (const k of keys) {
+    const v = obj[k];
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+    if (typeof v === "string" && v.trim() && !isNaN(Number(v))) return Number(v);
+  }
+  return 0;
+}
+
 export async function POST(req: Request) {
   const rawBody = await req.text();
 
@@ -173,6 +208,102 @@ export async function POST(req: Request) {
           .update({ status: "paid", paid_at: new Date().toISOString() })
           .eq("user_id", userId)
           .eq("ghl_invoice_id", invoiceId);
+        break;
+      }
+
+      case "invoice.created":
+      case "invoice.sent":
+      case "InvoiceCreated":
+      case "InvoiceSent": {
+        const inv = (payload.invoice ?? payload) as Record<string, unknown>;
+        const ghlInvId =
+          pickString(inv, ["id", "invoice_id", "invoiceId", "_id"]) ?? "";
+        if (!ghlInvId) break;
+
+        // Update if we already have it; otherwise create when we can find the client.
+        const { data: existing } = await supabase
+          .from("invoices")
+          .select("id")
+          .eq("user_id", userId)
+          .eq("ghl_invoice_id", ghlInvId)
+          .maybeSingle();
+
+        if (existing) {
+          await supabase
+            .from("invoices")
+            .update({ status: "sent" })
+            .eq("id", existing.id);
+        } else {
+          const contactId = pickString(inv, ["contactId", "contact_id"]);
+          const clientId = await resolveClientId(supabase, userId, contactId);
+          if (!clientId) break; // can't link to a client yet — skip until contact syncs
+          await supabase.from("invoices").insert({
+            user_id: userId,
+            client_id: clientId,
+            ghl_invoice_id: ghlInvId,
+            invoice_number:
+              pickString(inv, ["invoiceNumber", "invoice_number", "number"]) ??
+              `INV-${ghlInvId.slice(-6)}`,
+            line_items: pickArray(inv, ["items", "lineItems", "line_items"]),
+            total: pickNumber(inv, ["amount", "total", "totalAmount"]),
+            status: "sent",
+            due_date: pickString(inv, ["dueDate", "due_date"]),
+          });
+        }
+        break;
+      }
+
+      case "estimate.created":
+      case "estimate.sent":
+      case "estimate.accepted":
+      case "estimate.declined":
+      case "EstimateCreated":
+      case "EstimateSent":
+      case "EstimateAccepted":
+      case "EstimateDeclined": {
+        const e = (payload.estimate ?? payload) as Record<string, unknown>;
+        const ghlEstId =
+          pickString(e, ["id", "estimate_id", "estimateId", "_id"]) ?? "";
+        if (!ghlEstId) break;
+
+        const status =
+          eventType === "estimate.accepted" || eventType === "EstimateAccepted"
+            ? "approved"
+            : eventType === "estimate.declined" ||
+                eventType === "EstimateDeclined"
+              ? "declined"
+              : eventType === "estimate.sent" || eventType === "EstimateSent"
+                ? "sent"
+                : "draft";
+
+        const { data: existing } = await supabase
+          .from("estimates")
+          .select("id")
+          .eq("user_id", userId)
+          .eq("ghl_invoice_id", ghlEstId)
+          .maybeSingle();
+
+        if (existing) {
+          const update: Record<string, unknown> = { status };
+          if (status === "sent") update.sent_at = new Date().toISOString();
+          await supabase.from("estimates").update(update).eq("id", existing.id);
+        } else {
+          const contactId = pickString(e, ["contactId", "contact_id"]);
+          const clientId = await resolveClientId(supabase, userId, contactId);
+          if (!clientId) break;
+          await supabase.from("estimates").insert({
+            user_id: userId,
+            client_id: clientId,
+            ghl_invoice_id: ghlEstId, // reused column to track the GHL id
+            estimate_number:
+              pickString(e, ["estimateNumber", "estimate_number", "number"]) ??
+              `EST-${ghlEstId.slice(-6)}`,
+            line_items: pickArray(e, ["items", "lineItems", "line_items"]),
+            total: pickNumber(e, ["amount", "total", "totalAmount"]),
+            status,
+            sent_at: status === "sent" ? new Date().toISOString() : null,
+          });
+        }
         break;
       }
 
