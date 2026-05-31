@@ -4,6 +4,7 @@ import {
   getEstimates,
   getInvoices,
   getAppointments,
+  getClients,
   isToday,
 } from "@/lib/data";
 import { greeting, formatTime, formatCurrency } from "@/lib/format";
@@ -35,11 +36,13 @@ export default async function DashboardHome() {
     );
   }
 
-  const [estimates, invoices, appointments] = await Promise.all([
+  const [estimates, invoices, appointments, clients] = await Promise.all([
     getEstimates(user.id),
     getInvoices(user.id),
     getAppointments(user.id),
+    getClients(user.id),
   ]);
+  const clientsCount = clients.length;
 
   const estimatesOut = estimates.filter((e) => e.status === "sent").length;
   const todaysAppointments = appointments.filter((a) =>
@@ -86,15 +89,39 @@ export default async function DashboardHome() {
         <StatPill label="Overdue" value={overdueInvoices.length} danger />
       </section>
 
-      {/* 3. Quick action row */}
-      <section className="grid grid-cols-4 gap-2">
-        <QuickAction href="/estimates/new" label="New Job" primary />
-        <QuickAction href="/estimates/new" label="Estimate" />
-        <QuickAction href="/clients" label="Client" />
-        <QuickAction href="/invoices" label="Invoice" />
+      {/* 3. Quick action row — creating new things only */}
+      <section className="grid grid-cols-3 gap-2">
+        <QuickAction href="/estimates/new" label="Estimate" primary />
+        <QuickAction href="/clients/new" label="Client" />
+        <QuickAction href="/schedule" label="Appointment" />
       </section>
 
-      {/* 4. Active pipeline */}
+      {/* 4. Your Library — browse everything in one glance */}
+      <section>
+        <SectionHeader title="Your Library" />
+        <div className="grid grid-cols-3 gap-2">
+          <LibraryTile
+            href="/clients"
+            label="Clients"
+            count={
+              // counted server-side from the clients query in the dashboard
+              clientsCount
+            }
+          />
+          <LibraryTile
+            href="/estimates"
+            label="Estimates"
+            count={estimates.length}
+          />
+          <LibraryTile
+            href="/invoices"
+            label="Invoices"
+            count={invoices.length}
+          />
+        </div>
+      </section>
+
+      {/* 5. Active pipeline */}
       <section>
         <SectionHeader
           title="Active Pipeline"
@@ -245,6 +272,30 @@ function QuickAction({
         <path d="M12 5v14M5 12h14" strokeLinecap="round" />
       </svg>
       {label}
+    </Link>
+  );
+}
+
+function LibraryTile({
+  href,
+  label,
+  count,
+}: {
+  href: string;
+  label: string;
+  count: number;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex min-h-[80px] flex-col items-start justify-between rounded-card border border-line bg-white p-3 transition active:scale-[0.98]"
+    >
+      <span className="font-display text-2xl font-bold text-text-primary">
+        {count}
+      </span>
+      <span className="text-xs font-semibold text-text-secondary">
+        {label}
+      </span>
     </Link>
   );
 }
