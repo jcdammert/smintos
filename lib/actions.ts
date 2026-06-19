@@ -7,6 +7,7 @@ import { getCurrentUser, hasGhlCreds } from "@/lib/session";
 import { shortNumber, stripHtml } from "@/lib/format";
 import {
   createContact,
+  updateContact,
   createInvoice,
   updateInvoice,
   createCalendarEvent,
@@ -199,6 +200,52 @@ export async function importGhlContactsAction(): Promise<{
   revalidatePath("/clients");
   revalidatePath("/");
   return { imported };
+}
+
+export async function updateClientAction(
+  clientId: string,
+  formData: FormData,
+) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const name = String(formData.get("name") ?? "").trim();
+  const phone = String(formData.get("phone") ?? "").trim() || null;
+  const email = String(formData.get("email") ?? "").trim() || null;
+  const address = String(formData.get("address") ?? "").trim() || null;
+  const city = String(formData.get("city") ?? "").trim() || null;
+  const state = String(formData.get("state") ?? "").trim() || null;
+  const postalCode = String(formData.get("postal_code") ?? "").trim() || null;
+  const country = String(formData.get("country") ?? "").trim() || null;
+  if (!name) return;
+
+  const supabase = createServiceSupabase();
+  await supabase
+    .from("clients")
+    .update({ name, phone, email, address, city, state, postal_code: postalCode, country })
+    .eq("user_id", user.id)
+    .eq("id", clientId);
+
+  // Keep GHL in sync if connected.
+  if (hasGhlCreds(user)) {
+    const { data: client } = await supabase
+      .from("clients")
+      .select("ghl_contact_id")
+      .eq("id", clientId)
+      .maybeSingle();
+    if (client?.ghl_contact_id) {
+      await updateContact(user.ghl_location_id, user.ghl_api_key, client.ghl_contact_id, {
+        name, phone: phone ?? undefined, email: email ?? undefined,
+        address1: address ?? undefined, city: city ?? undefined,
+        state: state ?? undefined, postalCode: postalCode ?? undefined,
+        country: country ?? undefined,
+      });
+    }
+  }
+
+  revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/clients");
+  redirect(`/clients/${clientId}`);
 }
 
 // --- Estimates ------------------------------------------------------------

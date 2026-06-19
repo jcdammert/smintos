@@ -25,7 +25,7 @@ export default async function ThreadPage({
   ]);
 
   return (
-    <div className="space-y-4 pb-32">
+    <div className="space-y-4 pb-52">
       <header className="flex items-center gap-3">
         <Link
           href="/messages"
@@ -34,14 +34,18 @@ export default async function ThreadPage({
         >
           ←
         </Link>
-        <div className="min-w-0 flex-1">
+        {/* Tap name/phone to open the full client profile */}
+        <Link
+          href={`/clients/${client.id}`}
+          className="min-w-0 flex-1 active:opacity-70"
+        >
           <h1 className="truncate font-display text-xl font-bold text-text-primary">
             {client.name}
           </h1>
-          <p className="truncate text-xs text-text-secondary">
-            {client.phone ?? client.email ?? "—"}
+          <p className="truncate text-xs text-mint-dark">
+            {client.phone ?? client.email ?? "Tap to view profile →"}
           </p>
-        </div>
+        </Link>
       </header>
 
       {messages.length === 0 ? (

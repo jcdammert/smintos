@@ -5,7 +5,8 @@ import { getClient, getEstimates, getInvoices } from "@/lib/data";
 import { Card, SectionHeader, EmptyState } from "@/components/ui/Card";
 import { EstimateBadge, InvoiceBadge } from "@/components/ui/Badge";
 import { LinkButton } from "@/components/ui/Button";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
+import { getUserTimezone } from "@/lib/timezone";
 
 export const dynamic = "force-dynamic";
 
@@ -20,9 +21,10 @@ export default async function ClientDetailPage({
   const client = await getClient(user.id, params.id);
   if (!client) notFound();
 
-  const [allEstimates, allInvoices] = await Promise.all([
+  const [allEstimates, allInvoices, tz] = await Promise.all([
     getEstimates(user.id),
     getInvoices(user.id),
+    getUserTimezone(),
   ]);
   const estimates = allEstimates.filter((e) => e.client_id === client.id);
   const invoices = allInvoices.filter((i) => i.client_id === client.id);
@@ -37,9 +39,16 @@ export default async function ClientDetailPage({
         >
           ←
         </Link>
-        <h1 className="truncate font-display text-2xl font-bold text-text-primary">
+        <h1 className="min-w-0 flex-1 truncate font-display text-2xl font-bold text-text-primary">
           {client.name}
         </h1>
+        <LinkButton
+          href={`/clients/${client.id}/edit`}
+          variant="outline"
+          size="sm"
+        >
+          Edit
+        </LinkButton>
       </header>
 
       <Card>
@@ -53,14 +62,17 @@ export default async function ClientDetailPage({
           <Row label="Country" value={client.country} />
           <Row
             label="GHL contact"
-            value={client.ghl_contact_id ? "Synced" : "Not synced"}
+            value={client.ghl_contact_id ? "Synced ✓" : "Not synced"}
           />
         </dl>
       </Card>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-3 gap-2">
         <LinkButton href={`/estimates/new?client=${client.id}`} size="sm">
           + Estimate
+        </LinkButton>
+        <LinkButton href={`/invoices/new?client=${client.id}`} size="sm" variant="outline">
+          + Invoice
         </LinkButton>
         <LinkButton
           href={`/schedule?client=${client.id}`}
@@ -79,11 +91,17 @@ export default async function ClientDetailPage({
               <Link
                 key={e.id}
                 href={`/estimates/${e.id}`}
-                className="flex items-center justify-between rounded-card border border-line bg-white p-3"
+                className="flex items-center justify-between gap-3 rounded-card border border-line bg-white p-3 transition active:scale-[0.99]"
               >
-                <span className="font-semibold text-text-primary">
-                  {e.estimate_number} · {formatCurrency(e.total)}
-                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-semibold text-text-primary">
+                    {e.name || e.estimate_number} · {formatCurrency(e.total)}
+                  </p>
+                  <p className="text-xs text-text-secondary">
+                    {formatDate(e.created_at, tz)}
+                    {e.viewed_at ? " · 👁 Viewed" : ""}
+                  </p>
+                </div>
                 <EstimateBadge status={e.status} />
               </Link>
             ))}
@@ -101,11 +119,19 @@ export default async function ClientDetailPage({
               <Link
                 key={i.id}
                 href={`/invoices/${i.id}`}
-                className="flex items-center justify-between rounded-card border border-line bg-white p-3"
+                className="flex items-center justify-between gap-3 rounded-card border border-line bg-white p-3 transition active:scale-[0.99]"
               >
-                <span className="font-semibold text-text-primary">
-                  {i.invoice_number} · {formatCurrency(i.total)}
-                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-semibold text-text-primary">
+                    {i.name || i.invoice_number} · {formatCurrency(i.total)}
+                  </p>
+                  <p className="text-xs text-text-secondary">
+                    {i.status === "paid" && i.paid_at
+                      ? `Paid ${formatDate(i.paid_at, tz)}`
+                      : `Due ${formatDate(i.due_date, tz)}`}
+                    {i.viewed_at ? " · 👁 Viewed" : ""}
+                  </p>
+                </div>
                 <InvoiceBadge status={i.status} />
               </Link>
             ))}
