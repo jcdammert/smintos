@@ -33,6 +33,7 @@ const estimateTone: Record<EstimateStatus, Tone> = {
   sent: "blue",
   approved: "green",
   declined: "red",
+  invoiced: "mint",
 };
 
 const invoiceTone: Record<InvoiceStatus, Tone> = {

@@ -305,7 +305,7 @@ export async function sendEstimateAction(estimateId: string) {
 
 export async function setEstimateStatusAction(
   estimateId: string,
-  status: "draft" | "sent" | "approved" | "declined",
+  status: "draft" | "sent" | "approved" | "declined" | "invoiced",
 ) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
@@ -770,10 +770,10 @@ export async function importGhlEstimatesAction(): Promise<{
       }
 
       const status =
-        ["accepted", "approved", "signed", "completed"].includes(rawStatus)
-          ? "approved"
-          : ["invoiced", "converted", "invoice_created"].includes(rawStatus)
-            ? "approved" // invoiced = was accepted and converted
+        ["invoiced", "converted", "invoice_created"].includes(rawStatus)
+          ? "invoiced"
+          : ["accepted", "approved", "signed", "completed"].includes(rawStatus)
+            ? "approved"
             : ["declined", "rejected", "cancelled"].includes(rawStatus)
               ? "declined"
               : ["sent", "viewed", "opened", "delivered"].includes(rawStatus)

@@ -2,7 +2,7 @@
 // Domain types — mirror the Supabase schema. No `any` allowed (strict mode).
 // ---------------------------------------------------------------------------
 
-export type EstimateStatus = "draft" | "sent" | "approved" | "declined";
+export type EstimateStatus = "draft" | "sent" | "approved" | "declined" | "invoiced";
 export type InvoiceStatus = "sent" | "paid" | "overdue";
 
 export interface LineItem {

@@ -25,6 +25,7 @@ export function EstimateActions({
       { label: "Draft", value: "draft" as EstimateStatus },
       { label: "Sent", value: "sent" as EstimateStatus },
       { label: "Approved", value: "approved" as EstimateStatus },
+      { label: "Invoiced", value: "invoiced" as EstimateStatus },
       { label: "Declined", value: "declined" as EstimateStatus },
     ] as { label: string; value: EstimateStatus }[]
   ).filter((o) => o.value !== status);
@@ -70,6 +71,17 @@ export function EstimateActions({
       )}
     </div>
   );
+
+  if (status === "invoiced") {
+    return (
+      <div className="space-y-3">
+        <p className="rounded-card bg-mint/10 p-3 text-center text-sm font-semibold text-mint-dark">
+          ✓ Invoiced — an invoice has been created for this estimate.
+        </p>
+        {overridePicker}
+      </div>
+    );
+  }
 
   if (status === "approved") {
     return (

@@ -266,15 +266,22 @@ export async function POST(req: Request) {
           pickString(e, ["id", "estimate_id", "estimateId", "_id"]) ?? "";
         if (!ghlEstId) break;
 
+        const rawEvtStatus = (
+          (e.status as string | undefined) ?? ""
+        ).toLowerCase();
         const status =
-          eventType === "estimate.accepted" || eventType === "EstimateAccepted"
+          eventType === "estimate.accepted" || eventType === "EstimateAccepted" ||
+          rawEvtStatus === "accepted" || rawEvtStatus === "approved"
             ? "approved"
-            : eventType === "estimate.declined" ||
-                eventType === "EstimateDeclined"
+            : eventType === "estimate.declined" || eventType === "EstimateDeclined" ||
+              rawEvtStatus === "declined"
               ? "declined"
-              : eventType === "estimate.sent" || eventType === "EstimateSent"
+              : eventType === "estimate.sent" || eventType === "EstimateSent" ||
+                rawEvtStatus === "sent"
                 ? "sent"
-                : "draft";
+                : ["invoiced", "converted"].includes(rawEvtStatus)
+                  ? "invoiced"
+                  : "draft";
 
         const { data: existing } = await supabase
           .from("estimates")

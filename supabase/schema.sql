@@ -44,7 +44,7 @@ create table if not exists public.estimates (
   line_items jsonb not null default '[]'::jsonb,
   total numeric not null default 0,
   status text not null default 'draft'
-    check (status in ('draft','sent','approved','declined')),
+    check (status in ('draft','sent','approved','declined','invoiced')),
   sent_at timestamptz,
   viewed_at timestamptz,
   expires_at timestamptz,
