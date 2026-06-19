@@ -772,12 +772,12 @@ export async function importGhlEstimatesAction(): Promise<{
       const status =
         ["accepted", "approved", "signed", "completed"].includes(rawStatus)
           ? "approved"
-          : ["declined", "rejected", "cancelled"].includes(rawStatus)
-            ? "declined"
-            : ["sent", "viewed", "opened", "delivered"].includes(rawStatus)
-              ? "sent"
-              : ["invoiced", "converted", "invoice_created"].includes(rawStatus)
-                ? "approved" // converted to invoice = was approved
+          : ["invoiced", "converted", "invoice_created"].includes(rawStatus)
+            ? "approved" // invoiced = was accepted and converted
+            : ["declined", "rejected", "cancelled"].includes(rawStatus)
+              ? "declined"
+              : ["sent", "viewed", "opened", "delivered"].includes(rawStatus)
+                ? "sent"
                 : "draft";
 
       rows.push({
