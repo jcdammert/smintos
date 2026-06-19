@@ -305,7 +305,7 @@ export async function sendEstimateAction(estimateId: string) {
 
 export async function setEstimateStatusAction(
   estimateId: string,
-  status: "approved" | "declined",
+  status: "draft" | "sent" | "approved" | "declined",
 ) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
@@ -748,15 +748,37 @@ export async function importGhlEstimatesAction(): Promise<{
         continue;
       }
 
-      const statusRaw = String(e.status ?? "draft").toLowerCase();
+      // GHL returns estimate status under several different field names
+      // depending on account configuration and API version.
+      const rawStatus = (
+        (e.status as string | undefined) ??
+        (e.estimateStatus as string | undefined) ??
+        (e.invoiceStatus as string | undefined) ??
+        (e.documentStatus as string | undefined) ??
+        ""
+      ).toLowerCase().trim();
+
+      // Log on first item of each page so we can see the real GHL shape.
+      if (rows.length === 0) {
+        console.log("GHL_ESTIMATE_SAMPLE", JSON.stringify({
+          status: e.status,
+          estimateStatus: e.estimateStatus,
+          invoiceStatus: e.invoiceStatus,
+          documentStatus: e.documentStatus,
+          keys: Object.keys(e),
+        }));
+      }
+
       const status =
-        statusRaw === "accepted" || statusRaw === "approved"
+        ["accepted", "approved", "signed", "completed"].includes(rawStatus)
           ? "approved"
-          : statusRaw === "declined" || statusRaw === "rejected"
+          : ["declined", "rejected", "cancelled"].includes(rawStatus)
             ? "declined"
-            : statusRaw === "sent"
+            : ["sent", "viewed", "opened", "delivered"].includes(rawStatus)
               ? "sent"
-              : "draft";
+              : ["invoiced", "converted", "invoice_created"].includes(rawStatus)
+                ? "approved" // converted to invoice = was approved
+                : "draft";
 
       rows.push({
         user_id: user.id,
