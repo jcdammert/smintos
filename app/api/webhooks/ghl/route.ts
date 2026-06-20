@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { createServiceSupabase } from "@/lib/supabase";
-import { stripHtml } from "@/lib/format";
+import { stripHtml, toTitleCase } from "@/lib/format";
 
 /**
  * GHL webhook receiver. Authenticates, then syncs supported events into
@@ -175,10 +175,11 @@ export async function POST(req: Request) {
         if (!contactId) break;
         const first = pickString(c, ["firstName", "first_name"]) ?? "";
         const last = pickString(c, ["lastName", "last_name"]) ?? "";
-        const fullName =
+        const fullName = toTitleCase(
           pickString(c, ["contactName", "fullNameLowerCase", "name"]) ||
           `${first} ${last}`.trim() ||
-          "Unnamed";
+          "Unnamed",
+        );
 
         await supabase.from("clients").upsert(
           {

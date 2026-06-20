@@ -43,6 +43,15 @@ export function shortNumber(prefix: string): string {
   return `${prefix}-${stamp}`;
 }
 
+/** Capitalise the first letter of every word — "camilo valles" → "Camilo Valles". */
+export function toTitleCase(str: string | null | undefined): string {
+  if (!str) return "";
+  return str
+    .trim()
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 /** Strip HTML tags and decode the most common entities so GHL's rich-text
  *  descriptions render as clean plain text in Smintos. */
 export function stripHtml(input: string | null | undefined): string {

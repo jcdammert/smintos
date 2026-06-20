@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createServiceSupabase } from "@/lib/supabase";
 import { getCurrentUser, hasGhlCreds } from "@/lib/session";
-import { shortNumber, stripHtml } from "@/lib/format";
+import { shortNumber, stripHtml, toTitleCase } from "@/lib/format";
 import {
   createContact,
   updateContact,
@@ -82,14 +82,14 @@ export async function createClientAction(formData: FormData) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const name = String(formData.get("name") ?? "").trim();
+  const name = toTitleCase(String(formData.get("name") ?? ""));
   const phone = String(formData.get("phone") ?? "").trim() || null;
   const email = String(formData.get("email") ?? "").trim() || null;
   const address = String(formData.get("address") ?? "").trim() || null;
-  const city = String(formData.get("city") ?? "").trim() || null;
-  const state = String(formData.get("state") ?? "").trim() || null;
+  const city = toTitleCase(String(formData.get("city") ?? "")) || null;
+  const state = String(formData.get("state") ?? "").trim().toUpperCase() || null;
   const postalCode = String(formData.get("postal_code") ?? "").trim() || null;
-  const country = String(formData.get("country") ?? "").trim() || null;
+  const country = String(formData.get("country") ?? "").trim().toUpperCase() || null;
   if (!name) return;
 
   let ghlContactId: string | null = null;
@@ -163,11 +163,12 @@ export async function importGhlContactsAction(): Promise<{
     const rows = contacts.map((c) => {
       const first = (c.firstName as string | undefined) ?? "";
       const last = (c.lastName as string | undefined) ?? "";
-      const name =
+      const name = toTitleCase(
         (c.contactName as string | undefined) ||
         (c.name as string | undefined) ||
         `${first} ${last}`.trim() ||
-        "Unnamed";
+        "Unnamed",
+      );
       return {
         user_id: user.id,
         ghl_contact_id: String(c.id),
@@ -212,14 +213,14 @@ export async function updateClientAction(
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const name = String(formData.get("name") ?? "").trim();
+  const name = toTitleCase(String(formData.get("name") ?? ""));
   const phone = String(formData.get("phone") ?? "").trim() || null;
   const email = String(formData.get("email") ?? "").trim() || null;
   const address = String(formData.get("address") ?? "").trim() || null;
-  const city = String(formData.get("city") ?? "").trim() || null;
-  const state = String(formData.get("state") ?? "").trim() || null;
+  const city = toTitleCase(String(formData.get("city") ?? "")) || null;
+  const state = String(formData.get("state") ?? "").trim().toUpperCase() || null;
   const postalCode = String(formData.get("postal_code") ?? "").trim() || null;
-  const country = String(formData.get("country") ?? "").trim() || null;
+  const country = String(formData.get("country") ?? "").trim().toUpperCase() || null;
   if (!name) return;
 
   const supabase = createServiceSupabase();
