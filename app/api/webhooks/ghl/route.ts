@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { createServiceSupabase } from "@/lib/supabase";
+import { stripHtml } from "@/lib/format";
 
 /**
  * GHL webhook receiver. Authenticates, then syncs supported events into
@@ -380,7 +381,7 @@ export async function POST(req: Request) {
         const contactId =
           pickString(n, ["contactId", "contact_id"]) ??
           pickString(payload as Record<string, unknown>, ["contactId", "contact_id"]);
-        const body = pickString(n, ["body", "note", "text"]) ?? "";
+        const body = stripHtml(pickString(n, ["body", "note", "text"]) ?? "").trim();
         if (!body) break;
 
         let clientId: string | null = null;

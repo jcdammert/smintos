@@ -675,7 +675,7 @@ export async function importGhlNotesAction(
         user_id: user.id,
         client_id: clientId,
         ghl_note_id: ghlNoteId,
-        body: String(n.body ?? n.note ?? "").trim(),
+        body: stripHtml(String(n.body ?? n.note ?? "")).trim(),
         created_at:
           (n.dateAdded as string | undefined) ??
           (n.createdAt as string | undefined) ??
