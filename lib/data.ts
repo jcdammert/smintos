@@ -5,6 +5,7 @@ import type {
   Estimate,
   Invoice,
   Message,
+  Note,
   Product,
   WithClient,
 } from "@/types";
@@ -100,6 +101,20 @@ export async function getAppointments(
     .eq("user_id", userId)
     .order("scheduled_at", { ascending: true });
   return (data as WithClient<Appointment>[] | null) ?? [];
+}
+
+export async function getNotes(
+  userId: string,
+  clientId: string,
+): Promise<Note[]> {
+  const supabase = createServiceSupabase();
+  const { data } = await supabase
+    .from("notes")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("client_id", clientId)
+    .order("created_at", { ascending: false });
+  return (data as Note[] | null) ?? [];
 }
 
 export async function getProducts(userId: string): Promise<Product[]> {

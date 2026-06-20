@@ -85,6 +85,30 @@ export interface GhlListProductsResponse {
   total?: number;
 }
 
+export interface Note {
+  id: string;
+  user_id: string;
+  client_id: string;
+  ghl_note_id: string | null;
+  body: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GhlNoteInput {
+  body: string;
+  userId?: string;
+}
+
+export interface GhlNoteResponse {
+  note?: { id: string; body?: string; [key: string]: unknown };
+  id?: string;
+}
+
+export interface GhlListNotesResponse {
+  notes?: Array<Record<string, unknown>>;
+}
+
 export type MessageDirection = "inbound" | "outbound";
 
 export interface Message {

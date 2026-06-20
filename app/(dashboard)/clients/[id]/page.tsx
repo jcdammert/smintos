@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
-import { getClient, getEstimates, getInvoices } from "@/lib/data";
+import { getClient, getEstimates, getInvoices, getNotes } from "@/lib/data";
 import { Card, SectionHeader, EmptyState } from "@/components/ui/Card";
 import { EstimateBadge, InvoiceBadge } from "@/components/ui/Badge";
 import { LinkButton } from "@/components/ui/Button";
+import { NotesSection } from "@/components/modules/NotesSection";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { getUserTimezone } from "@/lib/timezone";
 
@@ -21,9 +22,10 @@ export default async function ClientDetailPage({
   const client = await getClient(user.id, params.id);
   if (!client) notFound();
 
-  const [allEstimates, allInvoices, tz] = await Promise.all([
+  const [allEstimates, allInvoices, notes, tz] = await Promise.all([
     getEstimates(user.id),
     getInvoices(user.id),
+    getNotes(user.id, client.id),
     getUserTimezone(),
   ]);
   const estimates = allEstimates.filter((e) => e.client_id === client.id);
@@ -110,6 +112,8 @@ export default async function ClientDetailPage({
           <EmptyState title="No estimates" />
         )}
       </section>
+
+      <NotesSection clientId={client.id} notes={notes} tz={tz} />
 
       <section>
         <SectionHeader title="Invoices" />

@@ -15,6 +15,9 @@ import {
   listInvoices as ghlListInvoices,
   listEstimates as ghlListEstimates,
   listProducts as ghlListProducts,
+  createNote as ghlCreateNote,
+  listNotes as ghlListNotes,
+  deleteNote as ghlDeleteNote,
   sendConversationMessage,
   searchConversations,
   listConversationMessages,
@@ -543,6 +546,153 @@ export async function createAppointmentAction(formData: FormData) {
   revalidatePath("/schedule");
   revalidatePath("/");
   redirect("/schedule");
+}
+
+// --- Notes ----------------------------------------------------------------
+
+export async function createNoteAction(
+  clientId: string,
+  body: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+
+  const trimmed = body.trim();
+  if (!trimmed) return { ok: false, error: "Note is empty." };
+
+  const supabase = createServiceSupabase();
+
+  // Get the client's GHL contact id for syncing.
+  const { data: client } = await supabase
+    .from("clients")
+    .select("ghl_contact_id")
+    .eq("user_id", user.id)
+    .eq("id", clientId)
+    .maybeSingle();
+
+  let ghlNoteId: string | null = null;
+  if (hasGhlCreds(user) && client?.ghl_contact_id) {
+    const res = await ghlCreateNote(
+      user.ghl_location_id,
+      user.ghl_api_key,
+      client.ghl_contact_id,
+      { body: trimmed },
+    );
+    if (res.ok) {
+      ghlNoteId = res.data?.note?.id ?? res.data?.id ?? null;
+    }
+  }
+
+  await supabase.from("notes").insert({
+    user_id: user.id,
+    client_id: clientId,
+    ghl_note_id: ghlNoteId,
+    body: trimmed,
+  });
+
+  revalidatePath(`/clients/${clientId}`);
+  return { ok: true };
+}
+
+export async function deleteNoteAction(
+  noteId: string,
+  clientId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+
+  const supabase = createServiceSupabase();
+  const { data: note } = await supabase
+    .from("notes")
+    .select("ghl_note_id")
+    .eq("user_id", user.id)
+    .eq("id", noteId)
+    .maybeSingle();
+
+  await supabase
+    .from("notes")
+    .delete()
+    .eq("user_id", user.id)
+    .eq("id", noteId);
+
+  // Also delete from GHL if we have the note id and a contact to target.
+  if (hasGhlCreds(user) && note?.ghl_note_id) {
+    const { data: client } = await supabase
+      .from("clients")
+      .select("ghl_contact_id")
+      .eq("user_id", user.id)
+      .eq("id", clientId)
+      .maybeSingle();
+    if (client?.ghl_contact_id) {
+      await ghlDeleteNote(
+        user.ghl_location_id,
+        user.ghl_api_key,
+        client.ghl_contact_id,
+        note.ghl_note_id,
+      );
+    }
+  }
+
+  revalidatePath(`/clients/${clientId}`);
+  return { ok: true };
+}
+
+export async function importGhlNotesAction(
+  clientId: string,
+): Promise<{ imported: number; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { imported: 0, error: "Not signed in." };
+  if (!hasGhlCreds(user))
+    return { imported: 0, error: "Connect GoHighLevel first." };
+
+  const supabase = createServiceSupabase();
+  const { data: client } = await supabase
+    .from("clients")
+    .select("ghl_contact_id")
+    .eq("user_id", user.id)
+    .eq("id", clientId)
+    .maybeSingle();
+
+  if (!client?.ghl_contact_id)
+    return { imported: 0, error: "Client has no GHL contact id." };
+
+  const res = await ghlListNotes(
+    user.ghl_location_id,
+    user.ghl_api_key,
+    client.ghl_contact_id,
+  );
+  if (!res.ok || !res.data)
+    return { imported: 0, error: res.error ?? "GHL fetch failed." };
+
+  const notes = (res.data.notes ?? []) as Array<Record<string, unknown>>;
+  if (notes.length === 0) return { imported: 0 };
+
+  const rows = notes
+    .map((n) => {
+      const ghlNoteId = String(n.id ?? n._id ?? "");
+      if (!ghlNoteId) return null;
+      return {
+        user_id: user.id,
+        client_id: clientId,
+        ghl_note_id: ghlNoteId,
+        body: String(n.body ?? n.note ?? "").trim(),
+        created_at:
+          (n.dateAdded as string | undefined) ??
+          (n.createdAt as string | undefined) ??
+          undefined,
+      };
+    })
+    .filter((r): r is NonNullable<typeof r> => r !== null && r.body.length > 0);
+
+  if (rows.length > 0) {
+    const { error } = await supabase
+      .from("notes")
+      .upsert(rows, { onConflict: "ghl_note_id" });
+    if (error) return { imported: 0, error: error.message };
+  }
+
+  revalidatePath(`/clients/${clientId}`);
+  return { imported: rows.length };
 }
 
 // --- Messages -------------------------------------------------------------

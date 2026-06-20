@@ -370,6 +370,37 @@ export async function POST(req: Request) {
         break;
       }
 
+      case "note.created":
+      case "note.updated":
+      case "NoteCreate":
+      case "NoteUpdate": {
+        const n = (payload.note ?? payload) as Record<string, unknown>;
+        const noteId = pickString(n, ["id", "note_id", "noteId", "_id"]) ?? "";
+        if (!noteId) break;
+        const contactId =
+          pickString(n, ["contactId", "contact_id"]) ??
+          pickString(payload as Record<string, unknown>, ["contactId", "contact_id"]);
+        const body = pickString(n, ["body", "note", "text"]) ?? "";
+        if (!body) break;
+
+        let clientId: string | null = null;
+        if (contactId) {
+          clientId = await resolveClientId(supabase, userId, contactId);
+        }
+        if (!clientId) break; // can't link without a client
+
+        await supabase.from("notes").upsert(
+          {
+            user_id: userId,
+            client_id: clientId,
+            ghl_note_id: noteId,
+            body,
+          },
+          { onConflict: "ghl_note_id" },
+        );
+        break;
+      }
+
       case "message.inbound":
       case "message.outbound":
       case "InboundMessage":

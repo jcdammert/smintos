@@ -14,6 +14,9 @@ import type {
   GhlSendMessageResponse,
   GhlConversationsSearchResponse,
   GhlMessagesPageResponse,
+  GhlNoteInput,
+  GhlNoteResponse,
+  GhlListNotesResponse,
 } from "@/types";
 
 const BASE_URL = "https://services.leadconnectorhq.com";
@@ -247,6 +250,49 @@ export function deleteCalendarEvent(
     method: "DELETE",
     apiKey,
     path: `/calendars/events/${eventId}`,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Notes
+// ---------------------------------------------------------------------------
+
+export function createNote(
+  _locationId: string,
+  apiKey: string,
+  contactId: string,
+  data: GhlNoteInput,
+): Promise<GhlResult<GhlNoteResponse>> {
+  return ghlRequest<GhlNoteResponse>({
+    method: "POST",
+    apiKey,
+    path: `/contacts/${contactId}/notes`,
+    body: data,
+  });
+}
+
+export function listNotes(
+  _locationId: string,
+  apiKey: string,
+  contactId: string,
+): Promise<GhlResult<GhlListNotesResponse>> {
+  return ghlRequest<GhlListNotesResponse>({
+    method: "GET",
+    apiKey,
+    path: `/contacts/${contactId}/notes`,
+  });
+}
+
+export function deleteNote(
+  _locationId: string,
+  apiKey: string,
+  contactId: string,
+  noteId: string,
+): Promise<GhlResult<{ succeeded: boolean }>> {
+  return ghlRequest<{ succeeded: boolean }>({
+    method: "DELETE",
+    apiKey,
+    path: `/contacts/${contactId}/notes/${noteId}`,
   });
 }
 

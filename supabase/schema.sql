@@ -89,6 +89,18 @@ create table if not exists public.appointments (
 );
 create index if not exists appointments_user_id_idx on public.appointments (user_id);
 
+-- --- notes ----------------------------------------------------------------
+create table if not exists public.notes (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users (id) on delete cascade,
+  client_id uuid not null references public.clients (id) on delete cascade,
+  ghl_note_id text unique,
+  body text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists notes_client_id_idx on public.notes (client_id);
+
 -- --- products --------------------------------------------------------------
 create table if not exists public.products (
   id uuid primary key default gen_random_uuid(),
