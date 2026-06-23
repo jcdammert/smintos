@@ -121,24 +121,33 @@ export function EstimateActions({
         </button>
       )}
       {status === "sent" && (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              disabled={pending}
+              onClick={() =>
+                start(() => setEstimateStatusAction(estimateId, "approved"))
+              }
+              className="min-h-[52px] rounded-card bg-mint text-sm font-semibold text-ink transition active:scale-[0.98] disabled:opacity-50"
+            >
+              Mark approved
+            </button>
+            <button
+              disabled={pending}
+              onClick={() =>
+                start(() => setEstimateStatusAction(estimateId, "declined"))
+              }
+              className="min-h-[52px] rounded-card border border-line bg-white text-sm font-semibold text-text-primary transition active:scale-[0.98] disabled:opacity-50"
+            >
+              Mark declined
+            </button>
+          </div>
           <button
             disabled={pending}
-            onClick={() =>
-              start(() => setEstimateStatusAction(estimateId, "approved"))
-            }
-            className="min-h-[52px] rounded-card bg-mint text-sm font-semibold text-ink transition active:scale-[0.98] disabled:opacity-50"
+            onClick={() => start(() => sendEstimateAction(estimateId))}
+            className="min-h-[44px] w-full rounded-card border border-line bg-white text-sm font-semibold text-text-secondary transition active:scale-[0.98] disabled:opacity-50"
           >
-            Mark approved
-          </button>
-          <button
-            disabled={pending}
-            onClick={() =>
-              start(() => setEstimateStatusAction(estimateId, "declined"))
-            }
-            className="min-h-[52px] rounded-card border border-line bg-white text-sm font-semibold text-text-primary transition active:scale-[0.98] disabled:opacity-50"
-          >
-            Mark declined
+            {pending ? "Resending…" : "↩ Resend to client"}
           </button>
         </div>
       )}
