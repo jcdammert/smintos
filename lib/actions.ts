@@ -391,7 +391,7 @@ export async function createEstimateAction(formData: FormData) {
     }
   }
 
-  const { data } = await supabase
+  const { data, error: insertError } = await supabase
     .from("estimates")
     .insert({
       user_id: user.id,
@@ -403,8 +403,16 @@ export async function createEstimateAction(formData: FormData) {
       total,
       status: "draft",
     })
-    .select("id")
+    .select("id, ghl_invoice_id")
     .maybeSingle();
+
+  // Verify the ghl_invoice_id actually landed in the DB.
+  console.log("ESTIMATE_INSERT", {
+    insertError: insertError?.message ?? null,
+    savedId: data?.id ?? null,
+    savedGhlId: (data as Record<string, unknown> | null)?.ghl_invoice_id ?? null,
+    intendedGhlId: ghlEstimateId,
+  });
 
   revalidatePath("/estimates");
   revalidatePath("/");
