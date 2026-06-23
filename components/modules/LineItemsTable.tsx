@@ -20,7 +20,12 @@ export function LineItemsTable({
               <p className="truncate text-sm font-medium text-text-primary">
                 {item.description || "Item"}
               </p>
-              <p className="text-xs text-text-secondary">
+              {item.notes && (
+                <p className="mt-0.5 text-xs text-text-secondary leading-snug">
+                  {item.notes}
+                </p>
+              )}
+              <p className="mt-0.5 text-xs text-text-secondary">
                 {item.quantity} × {formatCurrency(item.unitPrice)}
               </p>
             </div>

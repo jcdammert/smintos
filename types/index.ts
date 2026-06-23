@@ -7,7 +7,8 @@ export type InvoiceStatus = "sent" | "paid" | "overdue";
 
 export interface LineItem {
   id: string;
-  description: string;
+  description: string; // short name/title — single line
+  notes?: string;      // optional longer description shown below the name
   quantity: number;
   unitPrice: number;
 }

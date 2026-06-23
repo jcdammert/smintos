@@ -298,7 +298,7 @@ export async function createEstimateAction(formData: FormData) {
       contactId: client.ghl_contact_id,
       name: name ?? `Estimate ${shortNumber("EST")}`,
       items: lineItems.map((i) => ({
-        name: i.description,
+        name: i.description, description: i.notes ?? undefined,
         qty: i.quantity,
         amount: i.unitPrice,
       })),
@@ -356,7 +356,7 @@ export async function sendEstimateAction(estimateId: string) {
         contactId: contact.ghl_contact_id,
         name: (estimate.name as string | null) ?? estimate.estimate_number,
         items: lineItems.map((i) => ({
-          name: i.description,
+          name: i.description, description: i.notes ?? undefined,
           qty: i.quantity,
           amount: i.unitPrice,
         })),
@@ -434,7 +434,7 @@ export async function convertEstimateToInvoiceAction(estimateId: string) {
       contactId: ghlContactId,
       name: `Invoice for ${estimate.estimate_number}`,
       items: lineItems.map((i) => ({
-        name: i.description,
+        name: i.description, description: i.notes ?? undefined,
         qty: i.quantity,
         amount: i.unitPrice,
       })),
@@ -513,7 +513,7 @@ export async function createInvoiceAction(formData: FormData) {
       contactId: client.ghl_contact_id,
       name: name ?? `Invoice ${shortNumber("INV")}`,
       items: lineItems.map((i) => ({
-        name: i.description,
+        name: i.description, description: i.notes ?? undefined,
         qty: i.quantity,
         amount: i.unitPrice,
       })),

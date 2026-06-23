@@ -25,7 +25,8 @@ export function ProductPicker({
   function pick(p: Product) {
     onPick({
       id: `prod-${p.id}-${Date.now()}`,
-      description: p.name, // just the name — description is GHL marketing copy
+      description: p.name,
+      notes: p.description ?? undefined,
       quantity: 1,
       unitPrice: p.unit_price,
     });

@@ -119,13 +119,31 @@ export function EstimateForm({
             key={item.id}
             className="space-y-2 rounded-card border border-line bg-white p-3"
           >
-            <textarea
+            {/* Single-line name */}
+            <input
               value={item.description}
               onChange={(e) => update(item.id, { description: e.target.value })}
-              placeholder="Description (e.g. Driveway pressure wash)"
-              rows={2}
-              className="min-h-[44px] w-full resize-y rounded-lg border border-line px-3 py-2 text-base outline-none focus:border-mint"
+              placeholder="Item name (e.g. Full Vehicle Ceramic Tint)"
+              className="min-h-[44px] w-full rounded-lg border border-line px-3 text-base outline-none focus:border-mint"
             />
+            {/* Optional description — shown if already set, toggled by link */}
+            {item.notes !== undefined ? (
+              <textarea
+                value={item.notes}
+                onChange={(e) => update(item.id, { notes: e.target.value })}
+                placeholder="Description (optional)"
+                rows={2}
+                className="min-h-[44px] w-full resize-y rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-mint"
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => update(item.id, { notes: "" })}
+                className="text-xs text-mint-dark"
+              >
+                + Add description
+              </button>
+            )}
             <div className="flex items-center gap-2">
               <label className="flex-1">
                 <span className="mb-1 block text-xs text-text-secondary">Qty</span>
