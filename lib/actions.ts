@@ -337,7 +337,7 @@ export async function createEstimateAction(formData: FormData) {
       items: lineItems.map((i): GhlInvoiceItem => {
         const item: GhlInvoiceItem = {
           // GHL requires `type` on each line item.
-          type: "service",
+          type: "one_time",
           name: i.description,
           qty: i.quantity,
           amount: i.unitPrice,
@@ -627,7 +627,7 @@ export async function sendEstimateAction(estimateId: string) {
         frequencySettings: { enabled: false },
         items: lineItems.map((i): GhlInvoiceItem => {
           const item: GhlInvoiceItem = {
-            type: "service",
+            type: "one_time",
             name: i.description, qty: i.quantity, amount: i.unitPrice,
             currency: "USD", taxes: [],
           };
@@ -1275,14 +1275,14 @@ export async function importGhlEstimatesAction(): Promise<{
         ""
       ).toLowerCase().trim();
 
-      // Log on first item of each page so we can see the real GHL shape.
+      // Log on first item so we can see the real GHL estimate+item shape.
       if (rows.length === 0) {
+        const firstItem = ((e.invoiceItems ?? e.items ?? []) as Record<string, unknown>[])[0] ?? {};
         console.log("GHL_ESTIMATE_SAMPLE", JSON.stringify({
-          status: e.status,
-          estimateStatus: e.estimateStatus,
-          invoiceStatus: e.invoiceStatus,
-          documentStatus: e.documentStatus,
           keys: Object.keys(e),
+          itemKeys: Object.keys(firstItem),
+          itemType: firstItem.type,
+          itemCurrency: firstItem.currency,
         }));
       }
 
