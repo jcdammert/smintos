@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { createEstimateAction } from "@/lib/actions";
+import { createEstimateAction, updateEstimateAction } from "@/lib/actions";
 import { Button } from "@/components/ui/Button";
 import { ProductPicker } from "@/components/modules/ProductPicker";
 import { formatCurrency } from "@/lib/format";
-import type { Client, Discount, LineItem, Product } from "@/types";
+import type { Client, Discount, Estimate, LineItem, Product } from "@/types";
 
 let idCounter = 0;
 function newItem(): LineItem {
@@ -22,14 +22,20 @@ export function EstimateForm({
   clients,
   products,
   defaultClientId,
+  editingEstimate,
 }: {
   clients: Client[];
   products: Product[];
   defaultClientId?: string;
+  editingEstimate?: Estimate;
 }) {
-  const [clientId, setClientId] = useState(defaultClientId ?? "");
-  const [name, setName] = useState("");
-  const [items, setItems] = useState<LineItem[]>([newItem()]);
+  const [clientId, setClientId] = useState(editingEstimate?.client_id ?? defaultClientId ?? "");
+  const [name, setName] = useState(editingEstimate?.name ?? "");
+  const [items, setItems] = useState<LineItem[]>(
+    editingEstimate?.line_items?.length
+      ? (editingEstimate.line_items as LineItem[])
+      : [newItem()],
+  );
   const [discount, setDiscount] = useState<Discount>({ type: "fixed", value: 0 });
   const [pending, start] = useTransition();
 
@@ -64,7 +70,11 @@ export function EstimateForm({
     fd.set("name", name);
     fd.set("line_items", JSON.stringify(items.filter((i) => i.description)));
     fd.set("discount", JSON.stringify(discount));
-    start(() => createEstimateAction(fd));
+    if (editingEstimate) {
+      start(() => updateEstimateAction(editingEstimate.id, fd));
+    } else {
+      start(() => createEstimateAction(fd));
+    }
   }
 
   if (clients.length === 0) {
@@ -247,7 +257,9 @@ export function EstimateForm({
         disabled={pending || !clientId}
         onClick={submit}
       >
-        {pending ? "Creating…" : "Create estimate"}
+        {pending
+          ? editingEstimate ? "Saving…" : "Creating…"
+          : editingEstimate ? "Save changes" : "Create estimate"}
       </Button>
     </div>
   );

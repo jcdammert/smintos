@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { getEstimate } from "@/lib/data";
 import { EstimateBadge } from "@/components/ui/Badge";
+import { LinkButton } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { LineItemsTable } from "@/components/modules/LineItemsTable";
 import { EstimateActions } from "@/components/modules/EstimateActions";
@@ -45,7 +46,12 @@ export default async function EstimateDetailPage({
             </p>
           )}
         </div>
-        <EstimateBadge status={estimate.status} />
+        <div className="flex items-center gap-2">
+          <LinkButton href={`/estimates/${estimate.id}/edit`} variant="outline" size="sm">
+            Edit
+          </LinkButton>
+          <EstimateBadge status={estimate.status} />
+        </div>
       </header>
 
       <Card>

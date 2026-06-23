@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { getInvoice } from "@/lib/data";
 import { InvoiceBadge } from "@/components/ui/Badge";
+import { LinkButton } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { LineItemsTable } from "@/components/modules/LineItemsTable";
 import { InvoiceActions } from "@/components/modules/InvoiceActions";
@@ -45,7 +46,12 @@ export default async function InvoiceDetailPage({
             </p>
           )}
         </div>
-        <InvoiceBadge status={invoice.status} />
+        <div className="flex items-center gap-2">
+          <LinkButton href={`/invoices/${invoice.id}/edit`} variant="outline" size="sm">
+            Edit
+          </LinkButton>
+          <InvoiceBadge status={invoice.status} />
+        </div>
       </header>
 
       <Card>

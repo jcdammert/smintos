@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { createInvoiceAction } from "@/lib/actions";
+import { createInvoiceAction, updateInvoiceDetailsAction } from "@/lib/actions";
 import { Button } from "@/components/ui/Button";
 import { ProductPicker } from "@/components/modules/ProductPicker";
 import { formatCurrency } from "@/lib/format";
-import type { Client, Discount, LineItem, Product } from "@/types";
+import type { Client, Discount, Invoice, LineItem, Product } from "@/types";
 
 let idCounter = 0;
 function newItem(): LineItem {
@@ -22,14 +22,20 @@ export function InvoiceForm({
   clients,
   products,
   defaultClientId,
+  editingInvoice,
 }: {
   clients: Client[];
   products: Product[];
   defaultClientId?: string;
+  editingInvoice?: Invoice;
 }) {
-  const [clientId, setClientId] = useState(defaultClientId ?? "");
-  const [name, setName] = useState("");
-  const [items, setItems] = useState<LineItem[]>([newItem()]);
+  const [clientId, setClientId] = useState(editingInvoice?.client_id ?? defaultClientId ?? "");
+  const [name, setName] = useState(editingInvoice?.name ?? "");
+  const [items, setItems] = useState<LineItem[]>(
+    editingInvoice?.line_items?.length
+      ? (editingInvoice.line_items as LineItem[])
+      : [newItem()],
+  );
   const [discount, setDiscount] = useState<Discount>({ type: "fixed", value: 0 });
   const [pending, start] = useTransition();
 
@@ -63,7 +69,11 @@ export function InvoiceForm({
     fd.set("name", name);
     fd.set("line_items", JSON.stringify(items.filter((i) => i.description)));
     fd.set("discount", JSON.stringify(discount));
-    start(() => createInvoiceAction(fd));
+    if (editingInvoice) {
+      start(() => updateInvoiceDetailsAction(editingInvoice.id, fd));
+    } else {
+      start(() => createInvoiceAction(fd));
+    }
   }
 
   if (clients.length === 0) {
@@ -244,7 +254,9 @@ export function InvoiceForm({
         disabled={pending || !clientId}
         onClick={submit}
       >
-        {pending ? "Creating…" : "Create invoice"}
+        {pending
+          ? editingInvoice ? "Saving…" : "Creating…"
+          : editingInvoice ? "Save changes" : "Create invoice"}
       </Button>
     </div>
   );

@@ -330,6 +330,117 @@ export async function createEstimateAction(formData: FormData) {
   redirect("/estimates");
 }
 
+export async function updateEstimateAction(
+  estimateId: string,
+  formData: FormData,
+) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const name = String(formData.get("name") ?? "").trim() || null;
+  const rawItems = String(formData.get("line_items") ?? "[]");
+  const rawDiscount = String(formData.get("discount") ?? "{}");
+
+  let lineItems: LineItem[] = [];
+  try { lineItems = JSON.parse(rawItems) as LineItem[]; } catch { lineItems = []; }
+
+  let discountAmount = 0;
+  try {
+    const d = JSON.parse(rawDiscount) as { type?: string; value?: number };
+    if (d.value && d.value > 0) {
+      const sub = lineItems.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+      discountAmount = d.type === "percent" ? sub * (d.value / 100) : d.value;
+    }
+  } catch { /* no discount */ }
+  const total = Math.max(0, lineItems.reduce((s, i) => s + i.quantity * i.unitPrice, 0) - discountAmount);
+
+  const supabase = createServiceSupabase();
+  await supabase
+    .from("estimates")
+    .update({ name, line_items: lineItems, total })
+    .eq("user_id", user.id)
+    .eq("id", estimateId);
+
+  // Sync line item changes to GHL if we have a GHL estimate id.
+  const { data: est } = await supabase
+    .from("estimates")
+    .select("ghl_invoice_id")
+    .eq("id", estimateId)
+    .maybeSingle();
+
+  if (hasGhlCreds(user) && est?.ghl_invoice_id) {
+    await updateInvoice(user.ghl_location_id, user.ghl_api_key, est.ghl_invoice_id, {
+      name: name ?? undefined,
+      items: lineItems.map((i) => ({
+        name: i.description,
+        description: i.notes ?? undefined,
+        qty: i.quantity,
+        amount: i.unitPrice,
+      })),
+      total,
+    });
+  }
+
+  revalidatePath(`/estimates/${estimateId}`);
+  revalidatePath("/estimates");
+  redirect(`/estimates/${estimateId}`);
+}
+
+export async function updateInvoiceDetailsAction(
+  invoiceId: string,
+  formData: FormData,
+) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const name = String(formData.get("name") ?? "").trim() || null;
+  const rawItems = String(formData.get("line_items") ?? "[]");
+  const rawDiscount = String(formData.get("discount") ?? "{}");
+
+  let lineItems: LineItem[] = [];
+  try { lineItems = JSON.parse(rawItems) as LineItem[]; } catch { lineItems = []; }
+
+  let discountAmount = 0;
+  try {
+    const d = JSON.parse(rawDiscount) as { type?: string; value?: number };
+    if (d.value && d.value > 0) {
+      const sub = lineItems.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+      discountAmount = d.type === "percent" ? sub * (d.value / 100) : d.value;
+    }
+  } catch { /* no discount */ }
+  const total = Math.max(0, lineItems.reduce((s, i) => s + i.quantity * i.unitPrice, 0) - discountAmount);
+
+  const supabase = createServiceSupabase();
+  await supabase
+    .from("invoices")
+    .update({ name, line_items: lineItems, total })
+    .eq("user_id", user.id)
+    .eq("id", invoiceId);
+
+  const { data: inv } = await supabase
+    .from("invoices")
+    .select("ghl_invoice_id")
+    .eq("id", invoiceId)
+    .maybeSingle();
+
+  if (hasGhlCreds(user) && inv?.ghl_invoice_id) {
+    await updateInvoice(user.ghl_location_id, user.ghl_api_key, inv.ghl_invoice_id, {
+      name: name ?? undefined,
+      items: lineItems.map((i) => ({
+        name: i.description,
+        description: i.notes ?? undefined,
+        qty: i.quantity,
+        amount: i.unitPrice,
+      })),
+      total,
+    });
+  }
+
+  revalidatePath(`/invoices/${invoiceId}`);
+  revalidatePath("/invoices");
+  redirect(`/invoices/${invoiceId}`);
+}
+
 export async function sendEstimateAction(estimateId: string) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
