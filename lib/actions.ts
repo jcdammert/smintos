@@ -302,21 +302,31 @@ export async function createEstimateAction(formData: FormData) {
       .eq("id", user.id)
       .maybeSingle();
 
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const expiry = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+
     const estimatePayload = {
       contactId: client.ghl_contact_id,
+      // GHL estimate endpoint also requires contactDetails object.
+      contactDetails: { id: client.ghl_contact_id },
       name: name ?? `Estimate ${shortNumber("EST")}`,
-      currency: "USD",
-      // businessDetails is required by GHL estimate endpoint.
       businessDetails: {
         name: userRecord?.business_name ?? "My Business",
-        // address fields are optional but including keeps validation happy.
       },
-      items: lineItems.map((i) => {
-        // Strip any undefined fields — GHL rejects unknown keys like "undefined".
+      // Required date fields.
+      issueDate: today,
+      expiryDate: expiry,
+      // Required discount object (zero value = no discount).
+      discount: { type: "percentage", value: 0 },
+      // Required frequency settings.
+      frequencySettings: { frequency: "none" },
+      items: lineItems.map((i): GhlInvoiceItem => {
         const item: GhlInvoiceItem = {
           name: i.description,
           qty: i.quantity,
           amount: i.unitPrice,
+          // Each item needs its own currency.
+          currency: "USD",
           taxes: [],
         };
         if (i.notes) item.description = i.notes;
@@ -520,14 +530,21 @@ export async function sendEstimateAction(estimateId: string) {
         .select("business_name")
         .eq("id", user.id)
         .maybeSingle();
+      const today2 = new Date().toISOString().slice(0, 10);
+      const expiry2 = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
       const res = await ghlCreateEstimate(user.ghl_location_id, user.ghl_api_key, {
         contactId: contact.ghl_contact_id,
+        contactDetails: { id: contact.ghl_contact_id },
         name: (estimate.name as string | null) ?? estimate.estimate_number,
-        currency: "USD",
         businessDetails: { name: userRecord?.business_name ?? "My Business" },
-        items: lineItems.map((i) => {
+        issueDate: today2,
+        expiryDate: expiry2,
+        discount: { type: "percentage", value: 0 },
+        frequencySettings: { frequency: "none" },
+        items: lineItems.map((i): GhlInvoiceItem => {
           const item: GhlInvoiceItem = {
-            name: i.description, qty: i.quantity, amount: i.unitPrice, taxes: [],
+            name: i.description, qty: i.quantity, amount: i.unitPrice,
+            currency: "USD", taxes: [],
           };
           if (i.notes) item.description = i.notes;
           return item;
