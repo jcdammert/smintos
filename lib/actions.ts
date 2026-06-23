@@ -533,7 +533,7 @@ export async function sendEstimateAction(estimateId: string) {
           return item;
         }),
         total: Number(estimate.total) || 0,
-      } as Parameters<typeof ghlCreateEstimate>[2]);
+      });
       if (res.ok) {
         ghlId = res.data?.invoice?.id ?? res.data?.id ?? null;
         if (ghlId) {

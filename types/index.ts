@@ -188,6 +188,9 @@ export interface GhlInvoiceItem {
   name: string;
   qty: number;
   amount: number;
+  description?: string;
+  taxes?: unknown[];
+  [key: string]: unknown;
 }
 
 export interface GhlInvoiceInput {
