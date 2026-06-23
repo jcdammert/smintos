@@ -7,6 +7,7 @@ import { LinkButton } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { LineItemsTable } from "@/components/modules/LineItemsTable";
 import { InvoiceActions } from "@/components/modules/InvoiceActions";
+import { DeleteInvoiceButton } from "@/components/modules/DeleteButton";
 import { formatDate } from "@/lib/format";
 import { getUserTimezone } from "@/lib/timezone";
 
@@ -114,6 +115,7 @@ export default async function InvoiceDetailPage({
       <LineItemsTable items={invoice.line_items} total={invoice.total} />
 
       <InvoiceActions invoiceId={invoice.id} status={invoice.status} />
+      <DeleteInvoiceButton invoiceId={invoice.id} />
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { LinkButton } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { LineItemsTable } from "@/components/modules/LineItemsTable";
 import { EstimateActions } from "@/components/modules/EstimateActions";
+import { DeleteEstimateButton } from "@/components/modules/DeleteButton";
 import { formatDate } from "@/lib/format";
 import { getUserTimezone } from "@/lib/timezone";
 
@@ -101,6 +102,7 @@ export default async function EstimateDetailPage({
       <LineItemsTable items={estimate.line_items} total={estimate.total} />
 
       <EstimateActions estimateId={estimate.id} status={estimate.status} />
+      <DeleteEstimateButton estimateId={estimate.id} />
     </div>
   );
 }

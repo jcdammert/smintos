@@ -287,45 +287,54 @@ export async function createEstimateAction(formData: FormData) {
   // Push to GHL as a draft estimate when credentials are connected.
   let ghlEstimateId: string | null = null;
   const supabase = createServiceSupabase();
-  const { data: client } = await supabase
+
+  // Fetch the full client record so we can populate contactDetails.
+  const { data: fullClient } = await supabase
     .from("clients")
-    .select("ghl_contact_id")
+    .select("ghl_contact_id, name, phone, email")
     .eq("user_id", user.id)
     .eq("id", clientId)
     .maybeSingle();
 
-  if (hasGhlCreds(user) && client?.ghl_contact_id) {
-    // Fetch business details — GHL's estimate endpoint requires them.
+  if (hasGhlCreds(user) && fullClient?.ghl_contact_id) {
     const { data: userRecord } = await supabase
       .from("users")
       .select("business_name")
       .eq("id", user.id)
       .maybeSingle();
 
-    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const today = new Date().toISOString().slice(0, 10);
     const expiry = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
 
+    // Normalise phone to E.164 (+1XXXXXXXXXX) — GHL rejects other formats.
+    const rawPhone = fullClient.phone ?? "";
+    const digitsOnly = rawPhone.replace(/\D/g, "");
+    const e164Phone = digitsOnly.length === 10
+      ? `+1${digitsOnly}`
+      : digitsOnly.length === 11 && digitsOnly.startsWith("1")
+        ? `+${digitsOnly}`
+        : rawPhone || "+10000000000";
+
     const estimatePayload = {
-      contactId: client.ghl_contact_id,
-      // GHL estimate endpoint also requires contactDetails object.
-      contactDetails: { id: client.ghl_contact_id },
-      name: name ?? `Estimate ${shortNumber("EST")}`,
-      businessDetails: {
-        name: userRecord?.business_name ?? "My Business",
+      contactId: fullClient.ghl_contact_id,
+      contactDetails: {
+        id: fullClient.ghl_contact_id,
+        name: fullClient.name ?? "Client",
+        phoneNo: e164Phone,
+        email: fullClient.email ?? `${fullClient.ghl_contact_id}@placeholder.com`,
       },
-      // Required date fields.
+      name: name ?? `Estimate ${shortNumber("EST")}`,
+      currency: "USD",
+      businessDetails: { name: userRecord?.business_name ?? "My Business" },
       issueDate: today,
       expiryDate: expiry,
-      // Required discount object (zero value = no discount).
       discount: { type: "percentage", value: 0 },
-      // Required frequency settings.
-      frequencySettings: { frequency: "none" },
+      frequencySettings: { enabled: false },
       items: lineItems.map((i): GhlInvoiceItem => {
         const item: GhlInvoiceItem = {
           name: i.description,
           qty: i.quantity,
           amount: i.unitPrice,
-          // Each item needs its own currency.
           currency: "USD",
           taxes: [],
         };
@@ -352,12 +361,8 @@ export async function createEstimateAction(formData: FormData) {
       );
     }
 
-    // Always log so we can see exactly what GHL returns.
     console.log("GHL_CREATE_ESTIMATE", {
-      ok: res.ok,
-      status: res.status,
-      error: res.error,
-      data: JSON.stringify(res.data),
+      ok: res.ok, status: res.status, error: res.error,
     });
 
     if (res.ok) {
@@ -367,7 +372,6 @@ export async function createEstimateAction(formData: FormData) {
         (d?.id as string | undefined) ??
         res.data?.invoice?.id ??
         null;
-      console.log("GHL_CREATE_ESTIMATE ghlEstimateId=", ghlEstimateId);
     }
   }
 
@@ -501,6 +505,40 @@ export async function updateInvoiceDetailsAction(
   revalidatePath(`/invoices/${invoiceId}`);
   revalidatePath("/invoices");
   redirect(`/invoices/${invoiceId}`);
+}
+
+export async function deleteEstimateAction(estimateId: string) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const supabase = createServiceSupabase();
+  await supabase
+    .from("estimates")
+    .delete()
+    .eq("user_id", user.id)
+    .eq("id", estimateId);
+
+  revalidatePath("/estimates");
+  revalidatePath("/library");
+  revalidatePath("/");
+  redirect("/estimates");
+}
+
+export async function deleteInvoiceAction(invoiceId: string) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const supabase = createServiceSupabase();
+  await supabase
+    .from("invoices")
+    .delete()
+    .eq("user_id", user.id)
+    .eq("id", invoiceId);
+
+  revalidatePath("/invoices");
+  revalidatePath("/library");
+  revalidatePath("/");
+  redirect("/invoices");
 }
 
 export async function sendEstimateAction(estimateId: string) {
