@@ -11,6 +11,7 @@ import {
   createEstimate as ghlCreateEstimate,
   createEstimateViaInvoice as ghlCreateEstimateViaInvoice,
   sendEstimate as ghlSendEstimate,
+  deleteEstimate as ghlDeleteEstimate,
   createInvoice,
   updateInvoice,
   createCalendarEvent,
@@ -315,6 +316,7 @@ export async function createEstimateAction(formData: FormData) {
         ? `+${digitsOnly}`
         : rawPhone || "+10000000000";
 
+    const estimateName = name ?? `Estimate ${shortNumber("EST")}`;
     const estimatePayload = {
       contactId: fullClient.ghl_contact_id,
       contactDetails: {
@@ -323,7 +325,9 @@ export async function createEstimateAction(formData: FormData) {
         phoneNo: e164Phone,
         email: fullClient.email ?? `${fullClient.ghl_contact_id}@placeholder.com`,
       },
-      name: name ?? `Estimate ${shortNumber("EST")}`,
+      // GHL requires both `title` AND `name`.
+      title: estimateName,
+      name: estimateName,
       currency: "USD",
       businessDetails: { name: userRecord?.business_name ?? "My Business" },
       issueDate: today,
@@ -332,6 +336,8 @@ export async function createEstimateAction(formData: FormData) {
       frequencySettings: { enabled: false },
       items: lineItems.map((i): GhlInvoiceItem => {
         const item: GhlInvoiceItem = {
+          // GHL requires `type` on each line item.
+          type: "service",
           name: i.description,
           qty: i.quantity,
           amount: i.unitPrice,
@@ -512,11 +518,25 @@ export async function deleteEstimateAction(estimateId: string) {
   if (!user) redirect("/login");
 
   const supabase = createServiceSupabase();
+
+  // Fetch GHL id before deleting so we can remove it from GHL too.
+  const { data: est } = await supabase
+    .from("estimates")
+    .select("ghl_invoice_id")
+    .eq("user_id", user.id)
+    .eq("id", estimateId)
+    .maybeSingle();
+
   await supabase
     .from("estimates")
     .delete()
     .eq("user_id", user.id)
     .eq("id", estimateId);
+
+  // Mirror the delete to GHL.
+  if (hasGhlCreds(user) && est?.ghl_invoice_id) {
+    await ghlDeleteEstimate(user.ghl_location_id, user.ghl_api_key, est.ghl_invoice_id);
+  }
 
   revalidatePath("/estimates");
   revalidatePath("/library");
@@ -529,11 +549,25 @@ export async function deleteInvoiceAction(invoiceId: string) {
   if (!user) redirect("/login");
 
   const supabase = createServiceSupabase();
+  const { data: inv } = await supabase
+    .from("invoices")
+    .select("ghl_invoice_id")
+    .eq("user_id", user.id)
+    .eq("id", invoiceId)
+    .maybeSingle();
+
   await supabase
     .from("invoices")
     .delete()
     .eq("user_id", user.id)
     .eq("id", invoiceId);
+
+  // Mirror the delete to GHL.
+  if (hasGhlCreds(user) && inv?.ghl_invoice_id) {
+    await updateInvoice(user.ghl_location_id, user.ghl_api_key, inv.ghl_invoice_id, {
+      status: "cancelled",
+    });
+  }
 
   revalidatePath("/invoices");
   revalidatePath("/library");
@@ -570,17 +604,30 @@ export async function sendEstimateAction(estimateId: string) {
         .maybeSingle();
       const today2 = new Date().toISOString().slice(0, 10);
       const expiry2 = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+      const estName2 = (estimate.name as string | null) ?? estimate.estimate_number;
+      const c2 = contact as Record<string, unknown>;
+      const phone2 = (c2.phone as string | undefined) ?? "";
+      const digits2 = phone2.replace(/\D/g, "");
+      const e164b = digits2.length === 10 ? `+1${digits2}` : digits2.length === 11 && digits2.startsWith("1") ? `+${digits2}` : phone2 || "+10000000000";
       const res = await ghlCreateEstimate(user.ghl_location_id, user.ghl_api_key, {
         contactId: contact.ghl_contact_id,
-        contactDetails: { id: contact.ghl_contact_id },
-        name: (estimate.name as string | null) ?? estimate.estimate_number,
+        contactDetails: {
+          id: contact.ghl_contact_id,
+          name: (c2.name as string | undefined) ?? "Client",
+          phoneNo: e164b,
+          email: (c2.email as string | undefined) ?? `${contact.ghl_contact_id}@placeholder.com`,
+        },
+        title: estName2,
+        name: estName2,
+        currency: "USD",
         businessDetails: { name: userRecord?.business_name ?? "My Business" },
         issueDate: today2,
         expiryDate: expiry2,
         discount: { type: "percentage", value: 0 },
-        frequencySettings: { frequency: "none" },
+        frequencySettings: { enabled: false },
         items: lineItems.map((i): GhlInvoiceItem => {
           const item: GhlInvoiceItem = {
+            type: "service",
             name: i.description, qty: i.quantity, amount: i.unitPrice,
             currency: "USD", taxes: [],
           };

@@ -149,6 +149,18 @@ export function createEstimate(
   });
 }
 
+export function deleteEstimate(
+  _locationId: string,
+  apiKey: string,
+  estimateId: string,
+): Promise<GhlResult<{ succeeded: boolean }>> {
+  return ghlRequest<{ succeeded: boolean }>({
+    method: "DELETE",
+    apiKey,
+    path: `/invoices/estimate/${estimateId}`,
+  });
+}
+
 export function sendEstimate(
   locationId: string,
   apiKey: string,
