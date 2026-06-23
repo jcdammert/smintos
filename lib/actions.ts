@@ -9,6 +9,7 @@ import {
   createContact,
   updateContact,
   createEstimate as ghlCreateEstimate,
+  createEstimateViaInvoice as ghlCreateEstimateViaInvoice,
   sendEstimate as ghlSendEstimate,
   createInvoice,
   updateInvoice,
@@ -294,18 +295,53 @@ export async function createEstimateAction(formData: FormData) {
     .maybeSingle();
 
   if (hasGhlCreds(user) && client?.ghl_contact_id) {
-    const res = await ghlCreateEstimate(user.ghl_location_id, user.ghl_api_key, {
+    const estimatePayload = {
       contactId: client.ghl_contact_id,
       name: name ?? `Estimate ${shortNumber("EST")}`,
+      currency: "USD",
       items: lineItems.map((i) => ({
-        name: i.description, description: i.notes ?? undefined,
+        name: i.description,
+        description: i.notes ?? undefined,
         qty: i.quantity,
         amount: i.unitPrice,
+        taxes: [],
       })),
       total,
+    };
+
+    let res = await ghlCreateEstimate(
+      user.ghl_location_id,
+      user.ghl_api_key,
+      estimatePayload,
+    );
+
+    // If the dedicated estimate endpoint doesn't exist on this account (404),
+    // fall back to creating a draft invoice which GHL treats as an estimate.
+    if (!res.ok && (res.status === 404 || res.status === 405)) {
+      console.log("GHL_CREATE_ESTIMATE: estimate endpoint not found, falling back to invoice");
+      res = await ghlCreateEstimateViaInvoice(
+        user.ghl_location_id,
+        user.ghl_api_key,
+        estimatePayload,
+      );
+    }
+
+    // Always log so we can see exactly what GHL returns.
+    console.log("GHL_CREATE_ESTIMATE", {
+      ok: res.ok,
+      status: res.status,
+      error: res.error,
+      data: JSON.stringify(res.data),
     });
+
     if (res.ok) {
-      ghlEstimateId = res.data?.invoice?.id ?? res.data?.id ?? null;
+      const d = res.data as Record<string, unknown> | null;
+      ghlEstimateId =
+        (d?.estimateId as string | undefined) ??
+        (d?.id as string | undefined) ??
+        res.data?.invoice?.id ??
+        null;
+      console.log("GHL_CREATE_ESTIMATE ghlEstimateId=", ghlEstimateId);
     }
   }
 

@@ -134,11 +134,18 @@ export function createEstimate(
   apiKey: string,
   data: GhlInvoiceInput,
 ): Promise<GhlResult<GhlInvoiceResponse>> {
+  // GHL estimate creation endpoint — altId + altType are mandatory.
+  // Some GHL accounts use /invoices/estimate/, others accept /invoices/ with
+  // an explicit status:"draft" — we try the dedicated estimate endpoint first.
   return ghlRequest<GhlInvoiceResponse>({
     method: "POST",
     apiKey,
     path: "/invoices/estimate/",
-    body: { ...data, altId: locationId, altType: "location" },
+    body: {
+      ...data,
+      altId: locationId,
+      altType: "location",
+    },
   });
 }
 
@@ -152,6 +159,28 @@ export function sendEstimate(
     apiKey,
     path: `/invoices/estimate/${estimateId}/send`,
     body: { altId: locationId, altType: "location" },
+  });
+}
+
+/**
+ * Fallback: create an estimate using the standard invoice endpoint with
+ * status="draft". Used when the dedicated estimate endpoint returns 404.
+ */
+export function createEstimateViaInvoice(
+  locationId: string,
+  apiKey: string,
+  data: GhlInvoiceInput,
+): Promise<GhlResult<GhlInvoiceResponse>> {
+  return ghlRequest<GhlInvoiceResponse>({
+    method: "POST",
+    apiKey,
+    path: "/invoices/",
+    body: {
+      ...data,
+      altId: locationId,
+      altType: "location",
+      status: "draft",
+    },
   });
 }
 
