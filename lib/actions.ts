@@ -295,17 +295,33 @@ export async function createEstimateAction(formData: FormData) {
     .maybeSingle();
 
   if (hasGhlCreds(user) && client?.ghl_contact_id) {
+    // Fetch business details — GHL's estimate endpoint requires them.
+    const { data: userRecord } = await supabase
+      .from("users")
+      .select("business_name")
+      .eq("id", user.id)
+      .maybeSingle();
+
     const estimatePayload = {
       contactId: client.ghl_contact_id,
       name: name ?? `Estimate ${shortNumber("EST")}`,
       currency: "USD",
-      items: lineItems.map((i) => ({
-        name: i.description,
-        description: i.notes ?? undefined,
-        qty: i.quantity,
-        amount: i.unitPrice,
-        taxes: [],
-      })),
+      // businessDetails is required by GHL estimate endpoint.
+      businessDetails: {
+        name: userRecord?.business_name ?? "My Business",
+        // address fields are optional but including keeps validation happy.
+      },
+      items: lineItems.map((i) => {
+        // Strip any undefined fields — GHL rejects unknown keys like "undefined".
+        const item: Record<string, unknown> = {
+          name: i.description,
+          qty: i.quantity,
+          amount: i.unitPrice,
+          taxes: [],
+        };
+        if (i.notes) item.description = i.notes;
+        return item;
+      }),
       total,
     };
 
@@ -499,16 +515,25 @@ export async function sendEstimateAction(estimateId: string) {
     // If not yet in GHL, push it first.
     if (!ghlId && contact?.ghl_contact_id) {
       const lineItems = (estimate.line_items as LineItem[]) ?? [];
+      const { data: userRecord } = await supabase
+        .from("users")
+        .select("business_name")
+        .eq("id", user.id)
+        .maybeSingle();
       const res = await ghlCreateEstimate(user.ghl_location_id, user.ghl_api_key, {
         contactId: contact.ghl_contact_id,
         name: (estimate.name as string | null) ?? estimate.estimate_number,
-        items: lineItems.map((i) => ({
-          name: i.description, description: i.notes ?? undefined,
-          qty: i.quantity,
-          amount: i.unitPrice,
-        })),
+        currency: "USD",
+        businessDetails: { name: userRecord?.business_name ?? "My Business" },
+        items: lineItems.map((i) => {
+          const item: Record<string, unknown> = {
+            name: i.description, qty: i.quantity, amount: i.unitPrice, taxes: [],
+          };
+          if (i.notes) item.description = i.notes;
+          return item;
+        }),
         total: Number(estimate.total) || 0,
-      });
+      } as Parameters<typeof ghlCreateEstimate>[2]);
       if (res.ok) {
         ghlId = res.data?.invoice?.id ?? res.data?.id ?? null;
         if (ghlId) {

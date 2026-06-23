@@ -195,6 +195,9 @@ export interface GhlInvoiceInput {
   name: string;
   items: GhlInvoiceItem[];
   total?: number;
+  currency?: string;
+  businessDetails?: { name: string; address?: string; city?: string; state?: string; country?: string; postalCode?: string; };
+  [key: string]: unknown;
 }
 
 export interface GhlInvoiceResponse {
