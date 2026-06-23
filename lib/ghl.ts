@@ -125,6 +125,36 @@ export function listContacts(
 // Invoices
 // ---------------------------------------------------------------------------
 
+/**
+ * Create an estimate (quote) in GHL. Uses the estimate-specific endpoint;
+ * falls back to the invoice endpoint shape since GHL's estimate API mirrors it.
+ */
+export function createEstimate(
+  locationId: string,
+  apiKey: string,
+  data: GhlInvoiceInput,
+): Promise<GhlResult<GhlInvoiceResponse>> {
+  return ghlRequest<GhlInvoiceResponse>({
+    method: "POST",
+    apiKey,
+    path: "/invoices/estimate/",
+    body: { ...data, altId: locationId, altType: "location" },
+  });
+}
+
+export function sendEstimate(
+  locationId: string,
+  apiKey: string,
+  estimateId: string,
+): Promise<GhlResult<GhlInvoiceResponse>> {
+  return ghlRequest<GhlInvoiceResponse>({
+    method: "POST",
+    apiKey,
+    path: `/invoices/estimate/${estimateId}/send`,
+    body: { altId: locationId, altType: "location" },
+  });
+}
+
 export function createInvoice(
   locationId: string,
   apiKey: string,

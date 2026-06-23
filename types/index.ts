@@ -12,6 +12,11 @@ export interface LineItem {
   unitPrice: number;
 }
 
+export interface Discount {
+  type: "fixed" | "percent";
+  value: number;
+}
+
 export interface UserRecord {
   id: string;
   email: string;

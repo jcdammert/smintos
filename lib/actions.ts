@@ -8,6 +8,8 @@ import { shortNumber, stripHtml, toTitleCase } from "@/lib/format";
 import {
   createContact,
   updateContact,
+  createEstimate as ghlCreateEstimate,
+  sendEstimate as ghlSendEstimate,
   createInvoice,
   updateInvoice,
   createCalendarEvent,
@@ -261,22 +263,58 @@ export async function createEstimateAction(formData: FormData) {
   const clientId = String(formData.get("client_id") ?? "");
   const name = String(formData.get("name") ?? "").trim() || null;
   const rawItems = String(formData.get("line_items") ?? "[]");
+  const rawDiscount = String(formData.get("discount") ?? "{}");
   if (!clientId) return;
 
   let lineItems: LineItem[] = [];
-  try {
-    lineItems = JSON.parse(rawItems) as LineItem[];
-  } catch {
-    lineItems = [];
-  }
-  const total = lineItems.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+  try { lineItems = JSON.parse(rawItems) as LineItem[]; } catch { lineItems = []; }
 
+  let discountAmount = 0;
+  try {
+    const d = JSON.parse(rawDiscount) as { type?: string; value?: number };
+    if (d.value && d.value > 0) {
+      const subtotal = lineItems.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+      discountAmount = d.type === "percent"
+        ? subtotal * (d.value / 100)
+        : d.value;
+    }
+  } catch { /* no discount */ }
+
+  const subtotal = lineItems.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+  const total = Math.max(0, subtotal - discountAmount);
+
+  // Push to GHL as a draft estimate when credentials are connected.
+  let ghlEstimateId: string | null = null;
   const supabase = createServiceSupabase();
+  const { data: client } = await supabase
+    .from("clients")
+    .select("ghl_contact_id")
+    .eq("user_id", user.id)
+    .eq("id", clientId)
+    .maybeSingle();
+
+  if (hasGhlCreds(user) && client?.ghl_contact_id) {
+    const res = await ghlCreateEstimate(user.ghl_location_id, user.ghl_api_key, {
+      contactId: client.ghl_contact_id,
+      name: name ?? `Estimate ${shortNumber("EST")}`,
+      items: lineItems.map((i) => ({
+        name: i.description,
+        qty: i.quantity,
+        amount: i.unitPrice,
+      })),
+      total,
+    });
+    if (res.ok) {
+      ghlEstimateId = res.data?.invoice?.id ?? res.data?.id ?? null;
+    }
+  }
+
   const { data } = await supabase
     .from("estimates")
     .insert({
       user_id: user.id,
       client_id: clientId,
+      ghl_invoice_id: ghlEstimateId,
       estimate_number: shortNumber("EST"),
       name,
       line_items: lineItems,
@@ -297,6 +335,50 @@ export async function sendEstimateAction(estimateId: string) {
   if (!user) redirect("/login");
 
   const supabase = createServiceSupabase();
+  const { data: estimate } = await supabase
+    .from("estimates")
+    .select("*, client:clients(id, name, ghl_contact_id)")
+    .eq("user_id", user.id)
+    .eq("id", estimateId)
+    .maybeSingle();
+
+  if (!estimate) return;
+
+  let ghlId = estimate.ghl_invoice_id as string | null;
+
+  if (hasGhlCreds(user)) {
+    const contact = estimate.client as { ghl_contact_id?: string | null } | null;
+
+    // If not yet in GHL, push it first.
+    if (!ghlId && contact?.ghl_contact_id) {
+      const lineItems = (estimate.line_items as LineItem[]) ?? [];
+      const res = await ghlCreateEstimate(user.ghl_location_id, user.ghl_api_key, {
+        contactId: contact.ghl_contact_id,
+        name: (estimate.name as string | null) ?? estimate.estimate_number,
+        items: lineItems.map((i) => ({
+          name: i.description,
+          qty: i.quantity,
+          amount: i.unitPrice,
+        })),
+        total: Number(estimate.total) || 0,
+      });
+      if (res.ok) {
+        ghlId = res.data?.invoice?.id ?? res.data?.id ?? null;
+        if (ghlId) {
+          await supabase
+            .from("estimates")
+            .update({ ghl_invoice_id: ghlId })
+            .eq("id", estimateId);
+        }
+      }
+    }
+
+    // Now send it via GHL (triggers their SMS/email templates).
+    if (ghlId) {
+      await ghlSendEstimate(user.ghl_location_id, user.ghl_api_key, ghlId);
+    }
+  }
+
   await supabase
     .from("estimates")
     .update({ status: "sent", sent_at: new Date().toISOString() })
@@ -396,15 +478,25 @@ export async function createInvoiceAction(formData: FormData) {
   const clientId = String(formData.get("client_id") ?? "");
   const name = String(formData.get("name") ?? "").trim() || null;
   const rawItems = String(formData.get("line_items") ?? "[]");
+  const rawDiscount = String(formData.get("discount") ?? "{}");
   if (!clientId) return;
 
   let lineItems: LineItem[] = [];
+  try { lineItems = JSON.parse(rawItems) as LineItem[]; } catch { lineItems = []; }
+
+  let discountAmount = 0;
   try {
-    lineItems = JSON.parse(rawItems) as LineItem[];
-  } catch {
-    lineItems = [];
-  }
-  const total = lineItems.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+    const d = JSON.parse(rawDiscount) as { type?: string; value?: number };
+    if (d.value && d.value > 0) {
+      const sub = lineItems.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+      discountAmount = d.type === "percent" ? sub * (d.value / 100) : d.value;
+    }
+  } catch { /* no discount */ }
+
+  const total = Math.max(
+    0,
+    lineItems.reduce((s, i) => s + i.quantity * i.unitPrice, 0) - discountAmount,
+  );
 
   // Push the invoice to GHL when credentials are connected and we have a contact id.
   let ghlInvoiceId: string | null = null;

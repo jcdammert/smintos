@@ -5,7 +5,7 @@ import { createInvoiceAction } from "@/lib/actions";
 import { Button } from "@/components/ui/Button";
 import { ProductPicker } from "@/components/modules/ProductPicker";
 import { formatCurrency } from "@/lib/format";
-import type { Client, LineItem, Product } from "@/types";
+import type { Client, Discount, LineItem, Product } from "@/types";
 
 let idCounter = 0;
 function newItem(): LineItem {
@@ -30,9 +30,16 @@ export function InvoiceForm({
   const [clientId, setClientId] = useState(defaultClientId ?? "");
   const [name, setName] = useState("");
   const [items, setItems] = useState<LineItem[]>([newItem()]);
+  const [discount, setDiscount] = useState<Discount>({ type: "fixed", value: 0 });
   const [pending, start] = useTransition();
 
-  const total = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+  const subtotal = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+  const discountAmount = discount.value > 0
+    ? discount.type === "percent"
+      ? subtotal * (discount.value / 100)
+      : discount.value
+    : 0;
+  const total = Math.max(0, subtotal - discountAmount);
 
   function update(id: string, patch: Partial<LineItem>) {
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
@@ -55,6 +62,7 @@ export function InvoiceForm({
     fd.set("client_id", clientId);
     fd.set("name", name);
     fd.set("line_items", JSON.stringify(items.filter((i) => i.description)));
+    fd.set("discount", JSON.stringify(discount));
     start(() => createInvoiceAction(fd));
   }
 
@@ -171,8 +179,44 @@ export function InvoiceForm({
         </button>
       </div>
 
+      {/* Discount */}
+      <div className="rounded-card border border-line bg-white p-3 space-y-2">
+        <p className="text-sm font-medium text-text-primary">Discount (optional)</p>
+        <div className="flex gap-2">
+          <select
+            value={discount.type}
+            onChange={(e) => setDiscount({ ...discount, type: e.target.value as "fixed" | "percent" })}
+            className="min-h-[44px] rounded-lg border border-line bg-white px-3 text-sm outline-none focus:border-mint"
+          >
+            <option value="fixed">$ Fixed</option>
+            <option value="percent">% Percent</option>
+          </select>
+          <input
+            type="number"
+            min={0}
+            step={discount.type === "percent" ? 1 : 0.01}
+            max={discount.type === "percent" ? 100 : undefined}
+            value={discount.value || ""}
+            onChange={(e) => setDiscount({ ...discount, value: Number(e.target.value) || 0 })}
+            placeholder={discount.type === "percent" ? "e.g. 10" : "e.g. 50.00"}
+            className="min-h-[44px] flex-1 rounded-lg border border-line bg-white px-3 text-base outline-none focus:border-mint"
+          />
+        </div>
+        {discountAmount > 0 && (
+          <p className="text-right text-sm text-danger">
+            − {formatCurrency(discountAmount)}
+            {discount.type === "percent" ? ` (${discount.value}%)` : ""}
+          </p>
+        )}
+      </div>
+
       <div className="flex items-center justify-between rounded-card border border-line bg-white p-4">
-        <span className="text-sm text-text-secondary">Invoice total</span>
+        <div>
+          <span className="text-sm text-text-secondary">Invoice total</span>
+          {discountAmount > 0 && (
+            <p className="text-xs text-text-secondary line-through">{formatCurrency(subtotal)}</p>
+          )}
+        </div>
         <span className="font-display text-xl font-bold text-mint-dark">
           {formatCurrency(total)}
         </span>

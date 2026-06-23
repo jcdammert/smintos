@@ -5,10 +5,6 @@ import { Modal } from "@/components/ui/Modal";
 import { formatCurrency } from "@/lib/format";
 import type { Product, LineItem } from "@/types";
 
-/**
- * Browse-and-add modal. Renders inside EstimateForm / InvoiceForm and calls
- * onPick with a ready-to-use LineItem when the user taps a product.
- */
 export function ProductPicker({
   products,
   onPick,
@@ -18,6 +14,7 @@ export function ProductPicker({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [justAdded, setJustAdded] = useState<string | null>(null);
 
   const filtered = query.trim()
     ? products.filter((p) =>
@@ -28,12 +25,17 @@ export function ProductPicker({
   function pick(p: Product) {
     onPick({
       id: `prod-${p.id}-${Date.now()}`,
-      description: p.name + (p.description ? ` — ${p.description}` : ""),
+      description: p.name, // just the name — description is GHL marketing copy
       quantity: 1,
       unitPrice: p.unit_price,
     });
-    setOpen(false);
-    setQuery("");
+    setJustAdded(p.id);
+    // Brief "Added ✓" flash, then close.
+    setTimeout(() => {
+      setOpen(false);
+      setJustAdded(null);
+      setQuery("");
+    }, 600);
   }
 
   return (
@@ -46,11 +48,10 @@ export function ProductPicker({
         + Add from products
       </button>
 
-      <Modal open={open} onClose={() => setOpen(false)} title="Choose a product">
+      <Modal open={open} onClose={() => { setOpen(false); setQuery(""); }} title="Choose a product">
         {products.length === 0 ? (
           <p className="rounded-card border border-dashed border-line bg-white p-4 text-center text-sm text-text-secondary">
-            No products yet. Import them from GoHighLevel under Library →
-            Products, or add them in GHL.
+            No products yet. Import from Library → Products.
           </p>
         ) : (
           <div className="space-y-3">
@@ -62,32 +63,38 @@ export function ProductPicker({
             />
             <div className="max-h-[60vh] space-y-2 overflow-y-auto">
               {filtered.length === 0 ? (
-                <p className="px-1 py-3 text-center text-sm text-text-secondary">
-                  No match.
-                </p>
+                <p className="px-1 py-3 text-center text-sm text-text-secondary">No match.</p>
               ) : (
-                filtered.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => pick(p)}
-                    className="flex w-full items-center justify-between gap-3 rounded-card border border-line bg-white p-3 text-left transition active:scale-[0.99]"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate font-semibold text-text-primary">
-                        {p.name}
-                      </p>
-                      {p.description && (
-                        <p className="truncate text-xs text-text-secondary">
-                          {p.description}
+                filtered.map((p) => {
+                  const added = justAdded === p.id;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => pick(p)}
+                      disabled={added}
+                      className={`flex w-full items-center justify-between gap-3 rounded-card border p-3 text-left transition active:scale-[0.99] ${
+                        added
+                          ? "border-mint bg-mint/10"
+                          : "border-line bg-white"
+                      }`}
+                    >
+                      <div className="min-w-0">
+                        <p className={`truncate font-semibold ${added ? "text-mint-dark" : "text-text-primary"}`}>
+                          {added ? "✓ Added" : p.name}
                         </p>
-                      )}
-                    </div>
-                    <span className="flex-shrink-0 text-sm font-bold text-mint-dark">
-                      {formatCurrency(p.unit_price)}
-                    </span>
-                  </button>
-                ))
+                        {p.description && !added && (
+                          <p className="truncate text-xs text-text-secondary">
+                            {p.description}
+                          </p>
+                        )}
+                      </div>
+                      <span className={`flex-shrink-0 text-sm font-bold ${added ? "text-mint-dark" : "text-mint-dark"}`}>
+                        {formatCurrency(p.unit_price)}
+                      </span>
+                    </button>
+                  );
+                })
               )}
             </div>
           </div>
