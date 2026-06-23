@@ -28,7 +28,8 @@ export function ReplyForm({ clientId }: { clientId: string }) {
   return (
     <form
       onSubmit={submit}
-      className="fixed inset-x-0 bottom-[72px] z-30 mx-auto w-full max-w-md border-t border-line bg-white p-3 pb-[env(safe-area-inset-bottom)]"
+      className="fixed inset-x-0 z-30 mx-auto w-full max-w-md border-t border-line bg-white p-3"
+      style={{ bottom: "calc(72px + env(safe-area-inset-bottom, 0px))" }}
     >
       <div className="flex items-end gap-2">
         <textarea
