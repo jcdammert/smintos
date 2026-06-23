@@ -600,6 +600,7 @@ export async function sendEstimateAction(estimateId: string) {
   if (!estimate) return;
 
   let ghlId = estimate.ghl_invoice_id as string | null;
+  console.log("SEND_ESTIMATE ghlId from DB=", ghlId, "estimateId=", estimateId);
 
   if (hasGhlCreds(user)) {
     const contact = estimate.client as { ghl_contact_id?: string | null } | null;
@@ -659,7 +660,11 @@ export async function sendEstimateAction(estimateId: string) {
 
     // Now send it via GHL (triggers their SMS/email templates).
     if (ghlId) {
-      await ghlSendEstimate(user.ghl_location_id, user.ghl_api_key, ghlId);
+      console.log("SEND_ESTIMATE calling ghlSendEstimate with id=", ghlId);
+      const sendRes = await ghlSendEstimate(user.ghl_location_id, user.ghl_api_key, ghlId);
+      console.log("SEND_ESTIMATE result=", JSON.stringify({ ok: sendRes.ok, status: sendRes.status, error: sendRes.error }));
+    } else {
+      console.log("SEND_ESTIMATE skipped — no ghlId available");
     }
   }
 
