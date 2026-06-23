@@ -367,17 +367,27 @@ export async function createEstimateAction(formData: FormData) {
       );
     }
 
-    console.log("GHL_CREATE_ESTIMATE", {
-      ok: res.ok, status: res.status, error: res.error,
-    });
+    // Log full response so we can see the ID field name.
+    console.log("GHL_CREATE_ESTIMATE", JSON.stringify({
+      ok: res.ok,
+      status: res.status,
+      error: res.error,
+      dataKeys: res.data ? Object.keys(res.data as object) : null,
+      data: JSON.stringify(res.data),
+    }));
 
     if (res.ok) {
       const d = res.data as Record<string, unknown> | null;
+      // Try every field name GHL might use for the estimate ID.
       ghlEstimateId =
         (d?.estimateId as string | undefined) ??
+        (d?._id as string | undefined) ??
         (d?.id as string | undefined) ??
+        ((d?.estimate as Record<string, unknown> | undefined)?._id as string | undefined) ??
+        ((d?.estimate as Record<string, unknown> | undefined)?.id as string | undefined) ??
         res.data?.invoice?.id ??
         null;
+      console.log("GHL_CREATE_ESTIMATE id extracted=", ghlEstimateId);
     }
   }
 
