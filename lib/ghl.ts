@@ -170,7 +170,12 @@ export function sendEstimate(
     method: "POST",
     apiKey,
     path: `/invoices/estimate/${estimateId}/send`,
-    body: { altId: locationId, altType: "location" },
+    body: {
+      altId: locationId,
+      altType: "location",
+      action: "send",
+      liveMode: true,
+    },
   });
 }
 

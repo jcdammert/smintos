@@ -103,6 +103,11 @@ export default async function SettingsPage() {
                 ? "✓ Connected — contacts, invoices, and calendar events sync to GHL."
                 : "Not connected. The pipeline still works locally until you connect."}
             </p>
+            {user.ghl_location_id && user.ghl_api_key && (
+              <a href="/settings/ghl-test" className="text-xs font-semibold text-mint-dark">
+                → Test GHL connection & scopes
+              </a>
+            )}
           </div>
         </Card>
 
