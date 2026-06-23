@@ -25,7 +25,7 @@ import {
   searchConversations,
   listConversationMessages,
 } from "@/lib/ghl";
-import type { LineItem } from "@/types";
+import type { GhlInvoiceItem, LineItem } from "@/types";
 
 /**
  * Translate a GHL invoice/estimate line-item into Smintos's LineItem shape.
@@ -313,7 +313,7 @@ export async function createEstimateAction(formData: FormData) {
       },
       items: lineItems.map((i) => {
         // Strip any undefined fields — GHL rejects unknown keys like "undefined".
-        const item: Record<string, unknown> = {
+        const item: GhlInvoiceItem = {
           name: i.description,
           qty: i.quantity,
           amount: i.unitPrice,
@@ -526,7 +526,7 @@ export async function sendEstimateAction(estimateId: string) {
         currency: "USD",
         businessDetails: { name: userRecord?.business_name ?? "My Business" },
         items: lineItems.map((i) => {
-          const item: Record<string, unknown> = {
+          const item: GhlInvoiceItem = {
             name: i.description, qty: i.quantity, amount: i.unitPrice, taxes: [],
           };
           if (i.notes) item.description = i.notes;
