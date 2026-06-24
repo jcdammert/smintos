@@ -608,7 +608,13 @@ export async function sendEstimateAction(estimateId: string) {
   if (!estimate) return;
 
   let ghlId = estimate.ghl_invoice_id as string | null;
-  console.log("SEND_ESTIMATE ghlId from DB=", ghlId, "estimateId=", estimateId);
+  const client0 = estimate.client as Record<string, unknown> | null;
+  console.log("SEND_ESTIMATE debug=", JSON.stringify({
+    ghlId,
+    clientEmail: client0?.email,
+    clientPhone: client0?.phone,
+    clientName: client0?.name,
+  }));
 
   if (hasGhlCreds(user)) {
     const contact = estimate.client as { ghl_contact_id?: string | null } | null;
