@@ -154,10 +154,12 @@ export function deleteEstimate(
   apiKey: string,
   estimateId: string,
 ): Promise<GhlResult<{ succeeded: boolean }>> {
+  // GHL DELETE endpoint accepts altId/altType in both query params AND body.
   return ghlRequest<{ succeeded: boolean }>({
     method: "DELETE",
     apiKey,
-    path: `/invoices/estimate/${estimateId}?altId=${locationId}&altType=location`,
+    path: `/invoices/estimate/${estimateId}?altId=${encodeURIComponent(locationId)}&altType=location`,
+    body: { altId: locationId, altType: "location" },
   });
 }
 
