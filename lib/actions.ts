@@ -669,24 +669,37 @@ export async function sendEstimateAction(estimateId: string) {
     // Now send via GHL using the exact body shape from the GHL UI network intercept.
     if (ghlId) {
       const client2 = estimate.client as Record<string, unknown> | null;
-      const { data: userRec } = await supabase
-        .from("users")
-        .select("business_name, email")
-        .eq("id", user.id)
-        .maybeSingle();
-      const sendRes = await ghlSendEstimate(
-        user.ghl_location_id,
-        user.ghl_api_key,
-        ghlId,
-        {
-          estimateName: (estimate.name as string | null) ?? (estimate.estimate_number as string),
-          fromName: userRec?.business_name ?? "Smintos",
-          fromEmail: userRec?.email ?? user.email ?? "",
-          toEmail: (client2?.email as string | undefined) ?? "",
-          toPhone: (client2?.phone as string | undefined),
-        },
-      );
-      console.log("SEND_ESTIMATE result=", JSON.stringify({ ok: sendRes.ok, status: sendRes.status, error: sendRes.error }));
+      const clientEmail = (client2?.email as string | undefined)?.trim();
+
+      if (!clientEmail) {
+        // Can't send without a valid email — update status locally but skip GHL send.
+        console.log("SEND_ESTIMATE skipped — client has no email address");
+      } else {
+        const { data: userRec } = await supabase
+          .from("users")
+          .select("business_name, email")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        // Normalise phone to E.164 for sentTo.
+        const rawPhone = (client2?.phone as string | undefined) ?? "";
+        const digits = rawPhone.replace(/\D/g, "");
+        const e164 = digits.length === 10 ? `+1${digits}` : digits.length === 11 && digits.startsWith("1") ? `+${digits}` : rawPhone || undefined;
+
+        const sendRes = await ghlSendEstimate(
+          user.ghl_location_id,
+          user.ghl_api_key,
+          ghlId,
+          {
+            estimateName: (estimate.name as string | null) ?? (estimate.estimate_number as string),
+            fromName: userRec?.business_name ?? "Smintos",
+            fromEmail: userRec?.email ?? user.email ?? "",
+            toEmail: clientEmail,
+            toPhone: e164,
+          },
+        );
+        console.log("SEND_ESTIMATE result=", JSON.stringify({ ok: sendRes.ok, status: sendRes.status, error: sendRes.error }));
+      }
     } else {
       console.log("SEND_ESTIMATE skipped — no ghlId available");
     }
