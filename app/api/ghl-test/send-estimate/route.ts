@@ -4,7 +4,7 @@ import { getCurrentUser, hasGhlCreds } from "@/lib/session";
 const BASE = "https://services.leadconnectorhq.com";
 const VERSION = "2021-07-28";
 
-async function trySend(apiKey: string, estimateId: string, action: string, liveMode: boolean) {
+async function trySend(apiKey: string, locationId: string, estimateId: string, body: Record<string, unknown>) {
   const res = await fetch(`${BASE}/invoices/estimate/${estimateId}/send`, {
     method: "POST",
     headers: {
@@ -12,13 +12,13 @@ async function trySend(apiKey: string, estimateId: string, action: string, liveM
       Version: VERSION,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ action, liveMode }),
+    body: JSON.stringify(body),
     cache: "no-store",
   });
   const text = await res.text();
   let data: unknown;
   try { data = JSON.parse(text); } catch { data = text; }
-  return { action, liveMode, status: res.status, ok: res.ok, data };
+  return { body, status: res.status, ok: res.ok, data };
 }
 
 export async function GET(req: Request) {
@@ -57,34 +57,54 @@ export async function GET(req: Request) {
     });
   }
 
-  // Try every plausible action value — first one that returns ok:true wins.
-  const candidates = [
-    "email_and_sms", "EMAIL_AND_SMS", "email", "EMAIL",
-    "sms", "SMS", "send", "SEND", "both", "BOTH",
-    "email_sms", "EMAIL_SMS", "sms_email", "SMS_EMAIL",
-    "sendEmail", "send_email", "SEND_EMAIL",
+  const locationId = user.ghl_location_id!;
+  const apiKey = user.ghl_api_key!;
+  const base = { altId: locationId, altType: "location", liveMode: true };
+
+  // Try: no action field at all first (maybe it's not needed)
+  const candidates: Record<string, unknown>[] = [
+    { ...base },
+    { ...base, action: "email_and_sms" },
+    { ...base, action: "EMAIL_AND_SMS" },
+    { ...base, action: "email" },
+    { ...base, action: "EMAIL" },
+    { ...base, action: "sms" },
+    { ...base, action: "SMS" },
+    { ...base, action: "send" },
+    { ...base, action: "SEND" },
+    { ...base, action: "both" },
+    { ...base, action: "email,sms" },
+    // Try different field names for the delivery channel
+    { ...base, channel: "email" },
+    { ...base, channel: "email_and_sms" },
+    { ...base, medium: "email" },
+    { ...base, notificationMedium: "email" },
+    { ...base, deliveryMethod: "email" },
+    { ...base, type: "email" },
   ];
 
   const results = [];
-  for (const action of candidates) {
-    const r = await trySend(user.ghl_api_key!, estimateId, action, true);
+  for (const body of candidates) {
+    const r = await trySend(apiKey, locationId, estimateId, body);
     results.push(r);
     if (r.ok) {
       return NextResponse.json({
-        winner: action,
+        winner: body,
         status: r.status,
-        message: "This action value worked!",
+        message: "✅ This body worked!",
         data: r.data,
-        allTried: results,
+        allTried: results.length,
       });
     }
-    // Small delay to avoid rate limiting.
-    await new Promise(res => setTimeout(res, 200));
+    await new Promise(res => setTimeout(res, 150));
   }
 
   return NextResponse.json({
     winner: null,
-    message: "None of the action values worked.",
-    results,
+    message: "None worked. Check errors for clues.",
+    // Show only first 3 results to keep response readable
+    firstThree: results.slice(0, 3),
+    lastOne: results[results.length - 1],
+    total: results.length,
   });
 }
