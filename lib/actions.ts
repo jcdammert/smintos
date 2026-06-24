@@ -600,7 +600,7 @@ export async function sendEstimateAction(estimateId: string) {
   const supabase = createServiceSupabase();
   const { data: estimate } = await supabase
     .from("estimates")
-    .select("*, client:clients(id, name, ghl_contact_id)")
+    .select("*, client:clients(id, name, email, phone, ghl_contact_id)")
     .eq("user_id", user.id)
     .eq("id", estimateId)
     .maybeSingle();
@@ -742,7 +742,7 @@ export async function convertEstimateToInvoiceAction(estimateId: string) {
   const supabase = createServiceSupabase();
   const { data: estimate } = await supabase
     .from("estimates")
-    .select("*, client:clients(id, name, ghl_contact_id)")
+    .select("*, client:clients(id, name, email, phone, ghl_contact_id)")
     .eq("user_id", user.id)
     .eq("id", estimateId)
     .maybeSingle();
