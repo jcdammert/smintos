@@ -6,6 +6,7 @@ import {
   setEstimateStatusAction,
   convertEstimateToInvoiceAction,
 } from "@/lib/actions";
+import { SendChannelPicker } from "@/components/modules/SendChannelPicker";
 import type { EstimateStatus } from "@/types";
 
 export function EstimateActions({
@@ -112,43 +113,33 @@ export function EstimateActions({
   return (
     <div className="space-y-3">
       {status === "draft" && (
-        <button
-          disabled={pending}
-          onClick={() => start(() => sendEstimateAction(estimateId))}
-          className="min-h-[52px] w-full rounded-card bg-mint text-base font-semibold text-ink transition active:scale-[0.98] disabled:opacity-50"
-        >
-          {pending ? "Sending…" : "Send to client (SMS/email)"}
-        </button>
+        <SendChannelPicker
+          label="Send estimate"
+          onSend={(ch) => sendEstimateAction(estimateId, ch)}
+        />
       )}
       {status === "sent" && (
         <div className="space-y-2">
           <div className="grid grid-cols-2 gap-2">
             <button
               disabled={pending}
-              onClick={() =>
-                start(() => setEstimateStatusAction(estimateId, "approved"))
-              }
+              onClick={() => start(() => setEstimateStatusAction(estimateId, "approved"))}
               className="min-h-[52px] rounded-card bg-mint text-sm font-semibold text-ink transition active:scale-[0.98] disabled:opacity-50"
             >
               Mark approved
             </button>
             <button
               disabled={pending}
-              onClick={() =>
-                start(() => setEstimateStatusAction(estimateId, "declined"))
-              }
+              onClick={() => start(() => setEstimateStatusAction(estimateId, "declined"))}
               className="min-h-[52px] rounded-card border border-line bg-white text-sm font-semibold text-text-primary transition active:scale-[0.98] disabled:opacity-50"
             >
               Mark declined
             </button>
           </div>
-          <button
-            disabled={pending}
-            onClick={() => start(() => sendEstimateAction(estimateId))}
-            className="min-h-[44px] w-full rounded-card border border-line bg-white text-sm font-semibold text-text-secondary transition active:scale-[0.98] disabled:opacity-50"
-          >
-            {pending ? "Resending…" : "↩ Resend to client"}
-          </button>
+          <SendChannelPicker
+            label="↩ Resend estimate"
+            onSend={(ch) => sendEstimateAction(estimateId, ch)}
+          />
         </div>
       )}
       {overridePicker}

@@ -313,12 +313,42 @@ export function sendInvoice(
   locationId: string,
   apiKey: string,
   invoiceId: string,
+  opts?: {
+    invoiceName?: string;
+    fromName?: string;
+    fromEmail?: string;
+    toEmail?: string;
+    toPhone?: string;
+    userId?: string;
+    action?: string;
+  },
 ): Promise<GhlResult<GhlInvoiceResponse>> {
+  const body: Record<string, unknown> = { altId: locationId, altType: "location" };
+  if (opts) {
+    body.liveMode = true;
+    body.action = opts.action ?? "sms_and_email";
+    if (opts.userId) body.userId = opts.userId;
+    if (opts.invoiceName) body.invoiceName = opts.invoiceName;
+    if (opts.fromName || opts.fromEmail) {
+      body.sentFrom = { fromName: opts.fromName ?? "", fromEmail: opts.fromEmail ?? "" };
+    }
+    if (opts.toEmail) {
+      const ph = opts.toPhone ?? "";
+      const d = ph.replace(/\D/g, "");
+      const e164 = d.length === 10 ? `+1${d}` : d.length === 11 && d.startsWith("1") ? `+${d}` : ph || undefined;
+      body.sentTo = {
+        email: [opts.toEmail],
+        emailCc: [],
+        emailBcc: [],
+        phoneNo: e164 ? [e164] : [],
+      };
+    }
+  }
   return ghlRequest<GhlInvoiceResponse>({
     method: "POST",
     apiKey,
     path: `/invoices/${invoiceId}/send`,
-    body: { altId: locationId, altType: "location" },
+    body,
   });
 }
 

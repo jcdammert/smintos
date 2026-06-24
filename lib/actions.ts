@@ -14,6 +14,7 @@ import {
   deleteEstimate as ghlDeleteEstimate,
   getLocationUsers,
   createInvoice,
+  sendInvoice,
   updateInvoice,
   createCalendarEvent,
   listContacts,
@@ -28,6 +29,55 @@ import {
   listConversationMessages,
 } from "@/lib/ghl";
 import type { GhlInvoiceItem, LineItem } from "@/types";
+
+/** Build the complete GHL invoice body — same required fields across invoices and estimates. */
+function buildGhlInvoiceBody(opts: {
+  contactId: string;
+  contactName: string;
+  contactPhone: string | null;
+  contactEmail: string | null;
+  businessName: string;
+  invoiceName: string;
+  lineItems: LineItem[];
+  total: number;
+  daysUntilDue?: number;
+}) {
+  const today = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const due = new Date(Date.now() + (opts.daysUntilDue ?? 14) * 86400000).toISOString().slice(0, 10);
+  const phone = opts.contactPhone ?? "";
+  const digits = phone.replace(/\D/g, "");
+  const e164 = digits.length === 10 ? `+1${digits}` : digits.length === 11 && digits.startsWith("1") ? `+${digits}` : phone || undefined;
+  return {
+    contactId: opts.contactId,
+    contactDetails: {
+      id: opts.contactId,
+      name: opts.contactName,
+      phoneNo: e164 ?? "+10000000000",
+      email: opts.contactEmail ?? `${opts.contactId}@placeholder.com`,
+    },
+    title: opts.invoiceName,
+    name: opts.invoiceName,
+    currency: "USD",
+    businessDetails: { name: opts.businessName },
+    issueDate: today,
+    dueDate: due,
+    discount: { type: "percentage", value: 0 },
+    frequencySettings: { enabled: false },
+    items: opts.lineItems.map((i): GhlInvoiceItem => {
+      const item: GhlInvoiceItem = {
+        type: "one_time",
+        name: i.description,
+        qty: i.quantity,
+        amount: i.unitPrice,
+        currency: "USD",
+        taxes: [],
+      };
+      if (i.notes) item.description = i.notes;
+      return item;
+    }),
+    total: opts.total,
+  };
+}
 
 /**
  * Translate a GHL invoice/estimate line-item into Smintos's LineItem shape.
@@ -367,13 +417,6 @@ export async function createEstimateAction(formData: FormData) {
       );
     }
 
-    // Log full response so we can see the ID field name.
-      ok: res.ok,
-      status: res.status,
-      error: res.error,
-      dataKeys: res.data ? Object.keys(res.data as object) : null,
-      data: JSON.stringify(res.data),
-    }));
 
     if (res.ok) {
       const d = res.data as Record<string, unknown> | null;
@@ -593,7 +636,7 @@ export async function deleteInvoiceAction(invoiceId: string) {
   redirect("/invoices");
 }
 
-export async function sendEstimateAction(estimateId: string) {
+export async function sendEstimateAction(estimateId: string, channel: "email" | "sms" | "sms_and_email" = "sms_and_email") {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
@@ -764,21 +807,28 @@ export async function convertEstimateToInvoiceAction(estimateId: string) {
   const lineItems = (estimate.line_items as LineItem[]) ?? [];
   const total = Number(estimate.total) || 0;
 
-  // Mirror the invoice into GHL when credentials are connected.
   let ghlInvoiceId: string | null = null;
   const ghlContactId = estimate.client?.ghl_contact_id as string | undefined;
   if (hasGhlCreds(user) && ghlContactId) {
-    const res = await createInvoice(user.ghl_location_id, user.ghl_api_key, {
-      contactId: ghlContactId,
-      name: `Invoice for ${estimate.estimate_number}`,
-      items: lineItems.map((i) => ({
-        name: i.description, description: i.notes ?? undefined,
-        qty: i.quantity,
-        amount: i.unitPrice,
-      })),
-      total,
-    });
-    if (res.ok) ghlInvoiceId = res.data?.invoice?.id ?? res.data?.id ?? null;
+    const { data: userRec0 } = await supabase.from("users").select("business_name").eq("id", user.id).maybeSingle();
+    const c0 = estimate.client as Record<string, unknown> | null;
+    const invName = `Invoice for ${(estimate.name as string | null) ?? estimate.estimate_number}`;
+    const res = await createInvoice(user.ghl_location_id, user.ghl_api_key,
+      buildGhlInvoiceBody({
+        contactId: ghlContactId,
+        contactName: (c0?.name as string | undefined) ?? "Client",
+        contactPhone: (c0?.phone as string | null) ?? null,
+        contactEmail: (c0?.email as string | null) ?? null,
+        businessName: userRec0?.business_name ?? "My Business",
+        invoiceName: invName,
+        lineItems,
+        total,
+      }),
+    );
+    if (res.ok) {
+      const d = res.data as Record<string, unknown> | null;
+      ghlInvoiceId = (d?.invoiceId as string | undefined) ?? (d?._id as string | undefined) ?? (d?.id as string | undefined) ?? res.data?.invoice?.id ?? null;
+    }
   }
 
   const { data: invoice } = await supabase
@@ -846,18 +896,32 @@ export async function createInvoiceAction(formData: FormData) {
     .eq("id", clientId)
     .maybeSingle();
 
-  if (hasGhlCreds(user) && client?.ghl_contact_id) {
-    const res = await createInvoice(user.ghl_location_id, user.ghl_api_key, {
-      contactId: client.ghl_contact_id,
-      name: name ?? `Invoice ${shortNumber("INV")}`,
-      items: lineItems.map((i) => ({
-        name: i.description, description: i.notes ?? undefined,
-        qty: i.quantity,
-        amount: i.unitPrice,
-      })),
-      total,
-    });
-    if (res.ok) ghlInvoiceId = res.data?.invoice?.id ?? res.data?.id ?? null;
+  const { data: fullClient2 } = await supabase
+    .from("clients")
+    .select("ghl_contact_id, name, phone, email")
+    .eq("user_id", user.id)
+    .eq("id", clientId)
+    .maybeSingle();
+
+  if (hasGhlCreds(user) && fullClient2?.ghl_contact_id) {
+    const { data: userRec2 } = await supabase.from("users").select("business_name").eq("id", user.id).maybeSingle();
+    const invName2 = name ?? `Invoice ${shortNumber("INV")}`;
+    const res = await createInvoice(user.ghl_location_id, user.ghl_api_key,
+      buildGhlInvoiceBody({
+        contactId: fullClient2.ghl_contact_id,
+        contactName: fullClient2.name ?? "Client",
+        contactPhone: fullClient2.phone,
+        contactEmail: fullClient2.email,
+        businessName: userRec2?.business_name ?? "My Business",
+        invoiceName: invName2,
+        lineItems,
+        total,
+      }),
+    );
+    if (res.ok) {
+      const d = res.data as Record<string, unknown> | null;
+      ghlInvoiceId = (d?.invoiceId as string | undefined) ?? (d?._id as string | undefined) ?? (d?.id as string | undefined) ?? res.data?.invoice?.id ?? null;
+    }
   }
 
   const { data: invoice } = await supabase
@@ -884,6 +948,73 @@ export async function createInvoiceAction(formData: FormData) {
 }
 
 // --- Invoices -------------------------------------------------------------
+
+export async function sendInvoiceAction(invoiceId: string, channel: "email" | "sms" | "sms_and_email" = "sms_and_email") {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const supabase = createServiceSupabase();
+  const { data: invoice } = await supabase
+    .from("invoices")
+    .select("*, client:clients(id, name, email, phone, ghl_contact_id)")
+    .eq("user_id", user.id)
+    .eq("id", invoiceId)
+    .maybeSingle();
+
+  if (!invoice) return;
+
+  if (hasGhlCreds(user)) {
+    let ghlId = invoice.ghl_invoice_id as string | null;
+
+    // If not yet in GHL, create it first.
+    if (!ghlId) {
+      const c = invoice.client as Record<string, unknown> | null;
+      const contactId = c?.ghl_contact_id as string | undefined;
+      if (contactId) {
+        const { data: userRec } = await supabase.from("users").select("business_name").eq("id", user.id).maybeSingle();
+        const res = await createInvoice(user.ghl_location_id, user.ghl_api_key,
+          buildGhlInvoiceBody({
+            contactId,
+            contactName: (c?.name as string | undefined) ?? "Client",
+            contactPhone: (c?.phone as string | null) ?? null,
+            contactEmail: (c?.email as string | null) ?? null,
+            businessName: userRec?.business_name ?? "My Business",
+            invoiceName: (invoice.name as string | null) ?? invoice.invoice_number,
+            lineItems: (invoice.line_items as LineItem[]) ?? [],
+            total: Number(invoice.total) || 0,
+          }),
+        );
+        if (res.ok) {
+          const d = res.data as Record<string, unknown> | null;
+          ghlId = (d?.invoiceId as string | undefined) ?? (d?._id as string | undefined) ?? (d?.id as string | undefined) ?? null;
+          if (ghlId) await supabase.from("invoices").update({ ghl_invoice_id: ghlId }).eq("id", invoiceId);
+        }
+      }
+    }
+
+    if (ghlId) {
+      const c = invoice.client as Record<string, unknown> | null;
+      const clientEmail = (c?.email as string | undefined)?.trim();
+      if (clientEmail) {
+        const { data: userRec } = await supabase.from("users").select("business_name, email").eq("id", user.id).maybeSingle();
+        const usersRes = await getLocationUsers(user.ghl_location_id, user.ghl_api_key);
+        const ghlUserId = usersRes.data?.users?.[0]?.id ?? undefined;
+        await sendInvoice(user.ghl_location_id, user.ghl_api_key, ghlId, {
+          invoiceName: (invoice.name as string | null) ?? invoice.invoice_number,
+          fromName: userRec?.business_name ?? "Smintos",
+          fromEmail: userRec?.email ?? user.email ?? "",
+          toEmail: clientEmail,
+          toPhone: (c?.phone as string | undefined),
+          userId: ghlUserId,
+          action: channel,
+        });
+      }
+    }
+  }
+
+  revalidatePath(`/invoices/${invoiceId}`);
+  revalidatePath("/");
+}
 
 export async function markInvoicePaidAction(invoiceId: string) {
   const user = await getCurrentUser();

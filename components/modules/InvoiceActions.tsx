@@ -1,7 +1,8 @@
 "use client";
 
 import { useTransition } from "react";
-import { markInvoicePaidAction } from "@/lib/actions";
+import { markInvoicePaidAction, sendInvoiceAction } from "@/lib/actions";
+import { SendChannelPicker } from "@/components/modules/SendChannelPicker";
 import type { InvoiceStatus } from "@/types";
 
 export function InvoiceActions({
@@ -22,12 +23,18 @@ export function InvoiceActions({
   }
 
   return (
-    <button
-      disabled={pending}
-      onClick={() => start(() => markInvoicePaidAction(invoiceId))}
-      className="min-h-[52px] w-full rounded-card bg-mint text-base font-semibold text-ink transition active:scale-[0.98] disabled:opacity-50"
-    >
-      {pending ? "Updating…" : "Mark as Paid"}
-    </button>
+    <div className="space-y-3">
+      <SendChannelPicker
+        label="Send invoice"
+        onSend={(ch) => sendInvoiceAction(invoiceId, ch)}
+      />
+      <button
+        disabled={pending}
+        onClick={() => start(() => markInvoicePaidAction(invoiceId))}
+        className="min-h-[52px] w-full rounded-card bg-mint text-base font-semibold text-ink transition active:scale-[0.98] disabled:opacity-50"
+      >
+        {pending ? "Updating…" : "Mark as Paid"}
+      </button>
+    </div>
   );
 }
