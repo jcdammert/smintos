@@ -666,10 +666,26 @@ export async function sendEstimateAction(estimateId: string) {
       }
     }
 
-    // Now send it via GHL (triggers their SMS/email templates).
+    // Now send via GHL using the exact body shape from the GHL UI network intercept.
     if (ghlId) {
-      console.log("SEND_ESTIMATE calling ghlSendEstimate with id=", ghlId);
-      const sendRes = await ghlSendEstimate(user.ghl_location_id, user.ghl_api_key, ghlId);
+      const client2 = estimate.client as Record<string, unknown> | null;
+      const { data: userRec } = await supabase
+        .from("users")
+        .select("business_name, email")
+        .eq("id", user.id)
+        .maybeSingle();
+      const sendRes = await ghlSendEstimate(
+        user.ghl_location_id,
+        user.ghl_api_key,
+        ghlId,
+        {
+          estimateName: (estimate.name as string | null) ?? (estimate.estimate_number as string),
+          fromName: userRec?.business_name ?? "Smintos",
+          fromEmail: userRec?.email ?? user.email ?? "",
+          toEmail: (client2?.email as string | undefined) ?? "",
+          toPhone: (client2?.phone as string | undefined),
+        },
+      );
       console.log("SEND_ESTIMATE result=", JSON.stringify({ ok: sendRes.ok, status: sendRes.status, error: sendRes.error }));
     } else {
       console.log("SEND_ESTIMATE skipped — no ghlId available");

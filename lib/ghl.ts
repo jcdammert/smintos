@@ -165,6 +165,13 @@ export function sendEstimate(
   locationId: string,
   apiKey: string,
   estimateId: string,
+  opts: {
+    estimateName: string;
+    fromName: string;
+    fromEmail: string;
+    toEmail: string;
+    toPhone?: string;
+  },
 ): Promise<GhlResult<GhlInvoiceResponse>> {
   return ghlRequest<GhlInvoiceResponse>({
     method: "POST",
@@ -173,8 +180,19 @@ export function sendEstimate(
     body: {
       altId: locationId,
       altType: "location",
-      action: "EMAIL_AND_SMS",
+      action: "sms_and_email",
       liveMode: true,
+      estimateName: opts.estimateName,
+      sentFrom: {
+        fromName: opts.fromName,
+        fromEmail: opts.fromEmail,
+      },
+      sentTo: {
+        email: [opts.toEmail],
+        emailCc: [],
+        emailBcc: [],
+        phoneNo: opts.toPhone ? [opts.toPhone] : [],
+      },
     },
   });
 }
