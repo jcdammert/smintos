@@ -171,6 +171,7 @@ export function sendEstimate(
     fromEmail: string;
     toEmail: string;
     toPhone?: string;
+    userId?: string;
   },
 ): Promise<GhlResult<GhlInvoiceResponse>> {
   return ghlRequest<GhlInvoiceResponse>({
@@ -182,6 +183,7 @@ export function sendEstimate(
       altType: "location",
       action: "sms_and_email",
       liveMode: true,
+      userId: opts.userId,
       estimateName: opts.estimateName,
       sentFrom: {
         fromName: opts.fromName,
@@ -344,6 +346,22 @@ export function deleteCalendarEvent(
     method: "DELETE",
     apiKey,
     path: `/calendars/events/${eventId}`,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Users
+// ---------------------------------------------------------------------------
+
+/** Fetch the first user for a location — used to get a userId for sending estimates. */
+export function getLocationUsers(
+  locationId: string,
+  apiKey: string,
+): Promise<GhlResult<{ users?: Array<{ id: string; name?: string; email?: string }> }>> {
+  return ghlRequest({
+    method: "GET",
+    apiKey,
+    path: `/users/?locationId=${locationId}`,
   });
 }
 

@@ -12,6 +12,7 @@ import {
   createEstimateViaInvoice as ghlCreateEstimateViaInvoice,
   sendEstimate as ghlSendEstimate,
   deleteEstimate as ghlDeleteEstimate,
+  getLocationUsers,
   createInvoice,
   updateInvoice,
   createCalendarEvent,
@@ -552,8 +553,10 @@ export async function deleteEstimateAction(estimateId: string) {
     .eq("id", estimateId);
 
   // Mirror the delete to GHL.
+  console.log("DELETE_ESTIMATE ghl_invoice_id=", est?.ghl_invoice_id, "hasCreds=", hasGhlCreds(user));
   if (hasGhlCreds(user) && est?.ghl_invoice_id) {
-    await ghlDeleteEstimate(user.ghl_location_id, user.ghl_api_key, est.ghl_invoice_id);
+    const delRes = await ghlDeleteEstimate(user.ghl_location_id, user.ghl_api_key, est.ghl_invoice_id);
+    console.log("DELETE_ESTIMATE result=", JSON.stringify({ ok: delRes.ok, status: delRes.status, error: delRes.error }));
   }
 
   revalidatePath("/estimates");
@@ -692,6 +695,11 @@ export async function sendEstimateAction(estimateId: string) {
         const digits = rawPhone.replace(/\D/g, "");
         const e164 = digits.length === 10 ? `+1${digits}` : digits.length === 11 && digits.startsWith("1") ? `+${digits}` : rawPhone || undefined;
 
+        // Fetch the GHL userId — required by the send endpoint.
+        const usersRes = await getLocationUsers(user.ghl_location_id, user.ghl_api_key);
+        const ghlUserId = usersRes.data?.users?.[0]?.id ?? undefined;
+        console.log("SEND_ESTIMATE ghlUserId=", ghlUserId);
+
         const sendRes = await ghlSendEstimate(
           user.ghl_location_id,
           user.ghl_api_key,
@@ -702,6 +710,7 @@ export async function sendEstimateAction(estimateId: string) {
             fromEmail: userRec?.email ?? user.email ?? "",
             toEmail: clientEmail,
             toPhone: e164,
+            userId: ghlUserId,
           },
         );
         console.log("SEND_ESTIMATE result=", JSON.stringify({ ok: sendRes.ok, status: sendRes.status, error: sendRes.error }));
