@@ -360,7 +360,6 @@ export async function createEstimateAction(formData: FormData) {
     // If the dedicated estimate endpoint doesn't exist on this account (404),
     // fall back to creating a draft invoice which GHL treats as an estimate.
     if (!res.ok && (res.status === 404 || res.status === 405)) {
-      console.log("GHL_CREATE_ESTIMATE: estimate endpoint not found, falling back to invoice");
       res = await ghlCreateEstimateViaInvoice(
         user.ghl_location_id,
         user.ghl_api_key,
@@ -369,7 +368,6 @@ export async function createEstimateAction(formData: FormData) {
     }
 
     // Log full response so we can see the ID field name.
-    console.log("GHL_CREATE_ESTIMATE", JSON.stringify({
       ok: res.ok,
       status: res.status,
       error: res.error,
@@ -388,7 +386,6 @@ export async function createEstimateAction(formData: FormData) {
         ((d?.estimate as Record<string, unknown> | undefined)?.id as string | undefined) ??
         res.data?.invoice?.id ??
         null;
-      console.log("GHL_CREATE_ESTIMATE id extracted=", ghlEstimateId);
     }
   }
 
