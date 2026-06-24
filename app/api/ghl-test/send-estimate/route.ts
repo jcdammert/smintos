@@ -40,14 +40,20 @@ export async function GET(req: Request) {
     );
     const listData = await listRes.json() as Record<string, unknown>;
     const estimates = (listData.estimates ?? listData.data ?? []) as Array<Record<string, unknown>>;
-    const draft = estimates.find(e => String(e.estimateStatus ?? e.status ?? "").toLowerCase() === "draft");
-    if (!draft) {
-      return NextResponse.json({ error: "No draft estimate found. Create a draft estimate first.", estimates: estimates.slice(0,3).map(e => ({ id: e._id, status: e.estimateStatus })) });
+    // Use the first estimate regardless of status — we just need any ID to test the send endpoint.
+    const first = estimates[0];
+    if (!first) {
+      return NextResponse.json({
+        error: "No estimates found in GHL at all.",
+        listStatus: listRes.status,
+        listData,
+      });
     }
     return NextResponse.json({
-      hint: `Found draft estimate. Re-run with ?id=${draft._id} to test sending.`,
-      estimateId: draft._id,
-      url: `/api/ghl-test/send-estimate?id=${draft._id}`,
+      hint: `Using estimate for send test. Re-run with ?id=... to test sending.`,
+      estimateId: first._id,
+      estimateStatus: first.estimateStatus ?? first.status,
+      url: `/api/ghl-test/send-estimate?id=${first._id}`,
     });
   }
 
