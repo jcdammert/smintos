@@ -173,7 +173,7 @@ export function sendEstimate(
     body: {
       altId: locationId,
       altType: "location",
-      action: "send",
+      action: "email",
       liveMode: true,
     },
   });
