@@ -53,7 +53,7 @@ export async function GET(req: Request) {
 
   if (test === "all" || test === "invoices") {
     results.invoices = await probe(apiKey, "GET",
-      `/invoices/?altId=${locationId}&altType=location&limit=1`);
+      `/invoices/?altId=${locationId}&altType=location&limit=1&offset=0`);
   }
 
   if (test === "all" || test === "estimates") {
