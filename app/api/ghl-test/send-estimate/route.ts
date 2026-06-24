@@ -32,7 +32,7 @@ export async function GET(req: Request) {
   if (!estimateId) {
     // If no estimate ID given, fetch the first draft estimate to use for testing.
     const listRes = await fetch(
-      `${BASE}/invoices/estimate/list?altId=${user.ghl_location_id}&altType=location&limit=5`,
+      `${BASE}/invoices/estimate/list?altId=${user.ghl_location_id}&altType=location&limit=5&offset=0`,
       {
         headers: { Authorization: `Bearer ${user.ghl_api_key!}`, Version: VERSION },
         cache: "no-store",
