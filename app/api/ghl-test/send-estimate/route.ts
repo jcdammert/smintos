@@ -59,52 +59,52 @@ export async function GET(req: Request) {
 
   const locationId = user.ghl_location_id!;
   const apiKey = user.ghl_api_key!;
-  const base = { altId: locationId, altType: "location", liveMode: true };
 
-  // Try: no action field at all first (maybe it's not needed)
-  const candidates: Record<string, unknown>[] = [
-    { ...base },
-    { ...base, action: "email_and_sms" },
-    { ...base, action: "EMAIL_AND_SMS" },
-    { ...base, action: "email" },
-    { ...base, action: "EMAIL" },
-    { ...base, action: "sms" },
-    { ...base, action: "SMS" },
-    { ...base, action: "send" },
-    { ...base, action: "SEND" },
-    { ...base, action: "both" },
-    { ...base, action: "email,sms" },
-    // Try different field names for the delivery channel
-    { ...base, channel: "email" },
-    { ...base, channel: "email_and_sms" },
-    { ...base, medium: "email" },
-    { ...base, notificationMedium: "email" },
-    { ...base, deliveryMethod: "email" },
-    { ...base, type: "email" },
-  ];
+  // Strategy A: use the INVOICE send endpoint (not estimate-specific)
+  // GHL estimates are invoices internally — this endpoint has no `action` field.
+  const invoiceSendRes = await fetch(`${BASE}/invoices/${estimateId}/send`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, Version: VERSION, "Content-Type": "application/json" },
+    body: JSON.stringify({ altId: locationId, altType: "location" }),
+    cache: "no-store",
+  });
+  const invoiceSendText = await invoiceSendRes.text();
+  let invoiceSendData: unknown;
+  try { invoiceSendData = JSON.parse(invoiceSendText); } catch { invoiceSendData = invoiceSendText; }
 
-  const results = [];
-  for (const body of candidates) {
-    const r = await trySend(apiKey, locationId, estimateId, body);
-    results.push(r);
-    if (r.ok) {
-      return NextResponse.json({
-        winner: body,
-        status: r.status,
-        message: "✅ This body worked!",
-        data: r.data,
-        allTried: results.length,
-      });
-    }
-    await new Promise(res => setTimeout(res, 150));
+  if (invoiceSendRes.ok) {
+    return NextResponse.json({
+      winner: "USE /invoices/{id}/send (not /invoices/estimate/{id}/send)",
+      status: invoiceSendRes.status,
+      data: invoiceSendData,
+    });
+  }
+
+  // Strategy B: try PATCH on the estimate to set status = sent
+  const patchRes = await fetch(`${BASE}/invoices/estimate/${estimateId}`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${apiKey}`, Version: VERSION, "Content-Type": "application/json" },
+    body: JSON.stringify({ altId: locationId, altType: "location", estimateStatus: "sent" }),
+    cache: "no-store",
+  });
+  const patchText = await patchRes.text();
+  let patchData: unknown;
+  try { patchData = JSON.parse(patchText); } catch { patchData = patchText; }
+
+  // Strategy C: numeric action values (some GHL enums are numbers)
+  const numericResults = [];
+  for (const n of [1, 2, 3, 4, 0]) {
+    const r = await trySend(apiKey, locationId, estimateId, {
+      altId: locationId, altType: "location", liveMode: true, action: n,
+    });
+    numericResults.push({ action: n, status: r.status, ok: r.ok, error: (r.data as Record<string, unknown>)?.message });
+    if (r.ok) return NextResponse.json({ winner: `action: ${n}`, data: r.data });
+    await new Promise(res => setTimeout(res, 100));
   }
 
   return NextResponse.json({
-    winner: null,
-    message: "None worked. Check errors for clues.",
-    // Show only first 3 results to keep response readable
-    firstThree: results.slice(0, 3),
-    lastOne: results[results.length - 1],
-    total: results.length,
+    invoiceSendEndpoint: { status: invoiceSendRes.status, ok: invoiceSendRes.ok, data: invoiceSendData },
+    estimatePatchStatus: { status: patchRes.status, ok: patchRes.ok, data: patchData },
+    numericActionResults: numericResults,
   });
 }
