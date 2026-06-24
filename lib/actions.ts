@@ -304,7 +304,7 @@ export async function createEstimateAction(formData: FormData) {
       .eq("id", user.id)
       .maybeSingle();
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = new Date(Date.now() - 86400000).toISOString().slice(0, 10); // yesterday — avoids UTC/timezone future-date rejection
     const expiry = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
 
     // Normalise phone to E.164 (+1XXXXXXXXXX) — GHL rejects other formats.
@@ -621,7 +621,7 @@ export async function sendEstimateAction(estimateId: string) {
         .select("business_name")
         .eq("id", user.id)
         .maybeSingle();
-      const today2 = new Date().toISOString().slice(0, 10);
+      const today2 = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
       const expiry2 = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
       const estName2 = (estimate.name as string | null) ?? estimate.estimate_number;
       const c2 = contact as Record<string, unknown>;
