@@ -174,8 +174,14 @@ export function sendEstimate(
     toEmail: string;
     toPhone?: string;
     userId?: string;
+    channel?: "email" | "sms" | "sms_and_email";
   },
 ): Promise<GhlResult<GhlInvoiceResponse>> {
+  const ch = opts.channel ?? "sms_and_email";
+  // Control sentTo based on channel so GHL only delivers via the selected medium.
+  const sentToEmail = ch !== "sms" ? [opts.toEmail] : [];
+  const sentToPhone = ch !== "email" && opts.toPhone ? [opts.toPhone] : [];
+
   return ghlRequest<GhlInvoiceResponse>({
     method: "POST",
     apiKey,
@@ -183,7 +189,7 @@ export function sendEstimate(
     body: {
       altId: locationId,
       altType: "location",
-      action: "sms_and_email",
+      action: ch,
       liveMode: true,
       userId: opts.userId,
       estimateName: opts.estimateName,
@@ -192,10 +198,10 @@ export function sendEstimate(
         fromEmail: opts.fromEmail,
       },
       sentTo: {
-        email: [opts.toEmail],
+        email: sentToEmail,
         emailCc: [],
         emailBcc: [],
-        phoneNo: opts.toPhone ? [opts.toPhone] : [],
+        phoneNo: sentToPhone,
       },
     },
   });

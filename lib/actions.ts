@@ -751,6 +751,7 @@ export async function sendEstimateAction(estimateId: string, channel: "email" | 
             toEmail: clientEmail,
             toPhone: e164,
             userId: ghlUserId,
+            channel,
           },
         );
         console.log("SEND_ESTIMATE result=", JSON.stringify({ ok: sendRes.ok, status: sendRes.status, error: sendRes.error }));
