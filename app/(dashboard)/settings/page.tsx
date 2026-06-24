@@ -2,6 +2,7 @@ import { getCurrentUser } from "@/lib/session";
 import { updateSettingsAction } from "@/lib/actions";
 import { signOut } from "@/lib/auth";
 import { getAllTimezones } from "@/lib/timezone";
+
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -103,11 +104,6 @@ export default async function SettingsPage() {
                 ? "✓ Connected — contacts, invoices, and calendar events sync to GHL."
                 : "Not connected. The pipeline still works locally until you connect."}
             </p>
-            {user.ghl_location_id && user.ghl_api_key && (
-              <a href="/settings/ghl-test" className="text-xs font-semibold text-mint-dark">
-                → Test GHL connection & scopes
-              </a>
-            )}
           </div>
         </Card>
 
