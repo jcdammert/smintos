@@ -8,7 +8,7 @@ import {
   useCallback,
 } from "react";
 import dynamic from "next/dynamic";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   createCalendarAppointmentAction,
@@ -469,6 +469,7 @@ export function CalendarView({
   today: string;
 }) {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [viewMode, setViewMode] = useState<ViewMode>("day");
   const [currentDate, setCurrentDate] = useState(() => startOfDay(new Date(today)));
   const [appointments, setAppointments] = useState(initialAppointments);
@@ -487,9 +488,14 @@ export function CalendarView({
     }
   }, [searchParams, appointments]);
 
+  // Reactive to URL changes so the FAB works even when already on /calendar
   useEffect(() => {
-    if (searchParams.get("new") === "1") setCreateOpen(true);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    if (searchParams.get("new") === "1") {
+      setCreateOpen(true);
+      // Clear the param so re-tapping the FAB triggers navigation again
+      router.replace("/calendar", { scroll: false });
+    }
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchRange = useCallback(
     (base: Date, mode: ViewMode = viewMode) => {
