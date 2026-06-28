@@ -80,7 +80,7 @@ export default async function ClientDetailPage({
           + Invoice
         </LinkButton>
         <LinkButton
-          href={`/schedule?client=${client.id}`}
+          href={`/calendar?new=1&contact_name=${encodeURIComponent(client.name)}${client.ghl_contact_id ? `&contact_id=${client.ghl_contact_id}` : ""}`}
           variant="outline"
           size="sm"
         >

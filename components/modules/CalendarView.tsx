@@ -208,7 +208,13 @@ function SheetLink({ href, label, icon, onClick, external }: { href: string; lab
 
 // ─── Create appointment sheet ───────────────────────────────────────────────
 
-function CreateSheet({ defaultDate, onClose, onCreated }: { defaultDate: Date; onClose: () => void; onCreated: () => void }) {
+function CreateSheet({ defaultDate, defaultContactName, defaultContactId, onClose, onCreated }: {
+  defaultDate: Date;
+  defaultContactName?: string;
+  defaultContactId?: string;
+  onClose: () => void;
+  onCreated: () => void;
+}) {
   const [visible, setVisible] = useState(false);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -247,8 +253,8 @@ function CreateSheet({ defaultDate, onClose, onCreated }: { defaultDate: Date; o
         <div className="flex-1 overflow-y-auto px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
           <form action={handleSubmit} className="space-y-4 pt-4">
             <Input id="title"        name="title"        label="Job title"      placeholder="Window tint — Tesla Model 3" required />
-            <Input id="contact_name" name="contact_name" label="Contact name"   placeholder="Jane Smith" />
-            <Input id="contact_id"   name="contact_id"   label="GHL contact ID" placeholder="Optional — enables GHL sync" />
+            <Input id="contact_name" name="contact_name" label="Contact name"   placeholder="Jane Smith" defaultValue={defaultContactName} />
+            <Input id="contact_id"   name="contact_id"   label="GHL contact ID" placeholder="Optional — enables GHL sync" defaultValue={defaultContactId} />
             <Input id="job_type"     name="job_type"     label="Job type"        placeholder="Auto tint, Residential…" />
             <Input id="address"      name="address"      label="Job address"     placeholder="123 Main St, Miami, FL" hint="Used to pin this job on the map view" />
 
@@ -302,6 +308,11 @@ export function CalendarView({
       if (found) setSelectedAppt(found);
     }
   }, [searchParams, appointments]);
+
+  // Auto-open create sheet via ?new=1 (from FAB or client Schedule button)
+  useEffect(() => {
+    if (searchParams.get("new") === "1") setCreateOpen(true);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchRange = useCallback(
     (base: Date, mode: ViewMode = viewMode) => {
@@ -438,7 +449,15 @@ export function CalendarView({
 
       {/* ── Sheets ── */}
       {selectedAppt && <JobDetailSheet apt={selectedAppt} onClose={() => setSelectedAppt(null)} />}
-      {createOpen   && <CreateSheet defaultDate={currentDate} onClose={() => setCreateOpen(false)} onCreated={() => fetchRange(currentDate)} />}
+      {createOpen   && (
+        <CreateSheet
+          defaultDate={currentDate}
+          defaultContactName={searchParams.get("contact_name") ?? undefined}
+          defaultContactId={searchParams.get("contact_id") ?? undefined}
+          onClose={() => setCreateOpen(false)}
+          onCreated={() => fetchRange(currentDate)}
+        />
+      )}
     </div>
   );
 }

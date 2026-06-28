@@ -39,7 +39,7 @@ const actions: Array<{
     ),
   },
   {
-    href: "/schedule",
+    href: "/calendar?new=1",
     label: "Appointment",
     icon: (
       <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="1.8">
