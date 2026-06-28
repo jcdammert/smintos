@@ -1,33 +1,41 @@
-import { formatTime } from "@/lib/format";
-import { getUserTimezone } from "@/lib/timezone";
-import type { WithClient, Appointment } from "@/types";
+import type { Appointment, AppointmentStatus } from "@/types";
 
-export async function AppointmentSlot({
-  item,
-}: {
-  item: WithClient<Appointment>;
-}) {
-  const tz = await getUserTimezone();
+const STATUS_BAR: Record<AppointmentStatus, string> = {
+  confirmed:   "bg-mint-dark",
+  showed:      "bg-blue-500",
+  cancelled:   "bg-red-500",
+  no_show:     "bg-orange-500",
+  unconfirmed: "bg-gray-400",
+  invalid:     "bg-gray-400",
+};
+
+export function AppointmentSlot({ item }: { item: Appointment }) {
+  const bar = STATUS_BAR[item.status] ?? "bg-gray-400";
+  const start = new Date(item.start_time).toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  const end = new Date(item.end_time).toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
   return (
     <div className="flex items-stretch gap-3 rounded-card border border-line bg-white p-3">
-      <div className="flex w-14 flex-shrink-0 flex-col items-center justify-center rounded-lg bg-bg">
-        <span className="text-sm font-bold text-text-primary">
-          {formatTime(item.scheduled_at, tz)}
-        </span>
-        <span className="text-[10px] text-text-secondary">
-          {item.duration_minutes}m
-        </span>
-      </div>
-      <div className="h-auto w-1 rounded-full bg-mint" />
+      <div className={`flex-shrink-0 w-1.5 rounded-full ${bar}`} />
       <div className="min-w-0 flex-1 py-0.5">
         <p className="truncate font-semibold text-text-primary">{item.title}</p>
         <p className="truncate text-sm text-text-secondary">
-          {item.client?.name ?? "—"}
-          {item.assigned_to ? ` · ${item.assigned_to}` : ""}
+          {item.contact_name ?? "—"}
+          {item.job_type ? ` · ${item.job_type}` : ""}
         </p>
         {item.notes && (
           <p className="mt-1 truncate text-xs text-text-secondary">{item.notes}</p>
         )}
+      </div>
+      <div className="flex flex-col items-end justify-center gap-0.5">
+        <span className="text-sm font-semibold text-text-primary">{start}</span>
+        <span className="text-xs text-text-secondary">{end}</span>
       </div>
     </div>
   );

@@ -1051,64 +1051,77 @@ export async function markInvoicePaidAction(invoiceId: string) {
 
 // --- Appointments ---------------------------------------------------------
 
-export async function createAppointmentAction(formData: FormData) {
+export async function createCalendarAppointmentAction(
+  formData: FormData,
+): Promise<{ ok: boolean; error?: string }> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user) return { ok: false, error: "Not signed in." };
 
-  const clientId = String(formData.get("client_id") ?? "");
   const title = String(formData.get("title") ?? "").trim();
-  const notes = String(formData.get("notes") ?? "").trim() || null;
-  const scheduledAt = String(formData.get("scheduled_at") ?? "");
-  const duration = Number(formData.get("duration_minutes") ?? 60) || 60;
+  const contactName = String(formData.get("contact_name") ?? "").trim() || null;
+  const contactId = String(formData.get("contact_id") ?? "").trim() || null;
+  const jobType = String(formData.get("job_type") ?? "").trim() || null;
+  const startTime = String(formData.get("start_time") ?? "");
+  const endTime = String(formData.get("end_time") ?? "");
   const assignedTo = String(formData.get("assigned_to") ?? "").trim() || null;
-  if (!clientId || !title || !scheduledAt) return;
+  const notes = String(formData.get("notes") ?? "").trim() || null;
 
-  const startIso = new Date(scheduledAt).toISOString();
-  const endIso = new Date(
-    new Date(scheduledAt).getTime() + duration * 60000,
-  ).toISOString();
+  if (!title || !startTime || !endTime) {
+    return { ok: false, error: "Title, start time and end time are required." };
+  }
+
+  const startIso = new Date(startTime).toISOString();
+  const endIso = new Date(endTime).toISOString();
 
   let ghlEventId: string | null = null;
-  if (hasGhlCreds(user)) {
-    const supabaseLookup = createServiceSupabase();
-    const { data: client } = await supabaseLookup
-      .from("clients")
-      .select("ghl_contact_id")
-      .eq("user_id", user.id)
-      .eq("id", clientId)
-      .maybeSingle();
 
-    if (client?.ghl_contact_id) {
-      const res = await createCalendarEvent(
-        user.ghl_location_id,
-        user.ghl_api_key,
-        {
-          contactId: client.ghl_contact_id,
-          title,
-          startTime: startIso,
-          endTime: endIso,
-          notes: notes ?? undefined,
-        },
-      );
-      if (res.ok) ghlEventId = res.data?.event?.id ?? res.data?.id ?? null;
-    }
+  if (hasGhlCreds(user) && contactId) {
+    const res = await createCalendarEvent(
+      user.ghl_location_id!,
+      user.ghl_api_key!,
+      {
+        contactId,
+        title,
+        startTime: startIso,
+        endTime: endIso,
+        notes: notes ?? undefined,
+        assignedUserId: undefined,
+      },
+    );
+    if (res.ok) ghlEventId = res.data?.event?.id ?? res.data?.id ?? null;
   }
 
   const supabase = createServiceSupabase();
-  await supabase.from("appointments").insert({
+  const { error } = await supabase.from("appointments").insert({
     user_id: user.id,
-    client_id: clientId,
-    ghl_event_id: ghlEventId,
     title,
-    notes,
-    scheduled_at: startIso,
-    duration_minutes: duration,
+    start_time: startIso,
+    end_time: endIso,
+    status: "unconfirmed",
+    contact_id: contactId,
+    contact_name: contactName,
+    job_type: jobType,
     assigned_to: assignedTo,
+    notes,
+    ghl_event_id: ghlEventId,
   });
 
-  revalidatePath("/schedule");
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/calendar");
   revalidatePath("/");
-  redirect("/schedule");
+  return { ok: true };
+}
+
+/** Server action: fetch appointments for a date range — called by the calendar client. */
+export async function fetchCalendarRangeAction(
+  from: string,
+  to: string,
+): Promise<import("@/types").Appointment[]> {
+  const user = await getCurrentUser();
+  if (!user) return [];
+  const { getCalendarAppointments } = await import("@/lib/data");
+  return getCalendarAppointments(user.id, from, to);
 }
 
 // --- Notes ----------------------------------------------------------------

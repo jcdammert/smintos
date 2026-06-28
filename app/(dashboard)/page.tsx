@@ -3,20 +3,36 @@ import { getCurrentUser } from "@/lib/session";
 import {
   getEstimates,
   getInvoices,
-  getAppointments,
-  isToday,
+  getTodayAppointments,
 } from "@/lib/data";
 import { getUserTimezone } from "@/lib/timezone";
-import { greeting, formatTime, formatCurrency } from "@/lib/format";
+import { greeting, formatCurrency } from "@/lib/format";
 import { SectionHeader, EmptyState } from "@/components/ui/Card";
 import {
   EstimatePipelineCard,
   InvoicePipelineCard,
-  AppointmentPipelineCard,
 } from "@/components/modules/PipelineCard";
+import type { AppointmentStatus } from "@/types";
 
-// Always render fresh data; refresh on navigation/focus.
 export const dynamic = "force-dynamic";
+
+const STATUS_DOT: Record<AppointmentStatus, string> = {
+  confirmed:   "bg-mint-dark",
+  showed:      "bg-blue-500",
+  cancelled:   "bg-red-500",
+  no_show:     "bg-orange-500",
+  unconfirmed: "bg-gray-400",
+  invalid:     "bg-gray-400",
+};
+
+const STATUS_LABEL: Record<AppointmentStatus, string> = {
+  confirmed:   "Confirmed",
+  showed:      "Showed",
+  cancelled:   "Cancelled",
+  no_show:     "No Show",
+  unconfirmed: "Unconfirmed",
+  invalid:     "Invalid",
+};
 
 export default async function DashboardHome() {
   const user = await getCurrentUser();
@@ -36,19 +52,15 @@ export default async function DashboardHome() {
     );
   }
 
-  const [estimates, invoices, appointments, tz] = await Promise.all([
+  const [estimates, invoices, todayJobs, tz] = await Promise.all([
     getEstimates(user.id),
     getInvoices(user.id),
-    getAppointments(user.id),
+    getTodayAppointments(user.id),
     getUserTimezone(),
   ]);
 
   const estimatesOut = estimates.filter((e) => e.status === "sent").length;
-  const todaysAppointments = appointments.filter((a) =>
-    isToday(a.scheduled_at),
-  );
   const overdueInvoices = invoices.filter((i) => i.status === "overdue");
-
   const approvedEstimates = estimates.filter((e) => e.status === "approved");
   const openInvoices = invoices.filter((i) => i.status !== "paid");
 
@@ -81,14 +93,60 @@ export default async function DashboardHome() {
         </button>
       </header>
 
-      {/* 2. Pipeline strip — clean light cards with mint accents */}
+      {/* 2. Stat pills */}
       <section className="grid grid-cols-3 gap-2">
         <StatPill label="Estimates out" value={estimatesOut} />
-        <StatPill label="Jobs today" value={todaysAppointments.length} />
+        <StatPill label="Jobs today" value={todayJobs.length} />
         <StatPill label="Overdue" value={overdueInvoices.length} danger />
       </section>
 
-      {/* 3. Active pipeline */}
+      {/* 3. Today's Jobs */}
+      <section>
+        <SectionHeader
+          title="Today's Jobs"
+          action={
+            <Link href="/calendar" className="text-sm font-semibold text-mint-dark">
+              Calendar
+            </Link>
+          }
+        />
+        {todayJobs.length > 0 ? (
+          <div className="space-y-2">
+            {todayJobs.map((job) => {
+              const dot = STATUS_DOT[job.status] ?? "bg-gray-400";
+              const label = STATUS_LABEL[job.status] ?? job.status;
+              const startTime = new Date(job.start_time).toLocaleTimeString([], {
+                hour: "numeric",
+                minute: "2-digit",
+              });
+              return (
+                <Link
+                  key={job.id}
+                  href={`/calendar?job=${job.id}`}
+                  className="flex items-center gap-3 rounded-card border border-line bg-white p-3 transition active:scale-[0.99]"
+                >
+                  <div className={`h-10 w-1.5 flex-shrink-0 rounded-full ${dot}`} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-semibold text-text-primary">{job.title}</p>
+                    <p className="truncate text-sm text-text-secondary">
+                      {job.contact_name ?? "—"}
+                      {job.job_type ? ` · ${job.job_type}` : ""}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="text-sm font-semibold text-text-primary">{startTime}</span>
+                    <span className="text-[10px] text-text-secondary">{label}</span>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        ) : (
+          <EmptyState title="No jobs scheduled today" />
+        )}
+      </section>
+
+      {/* 4. Active pipeline */}
       <section>
         <SectionHeader
           title="Active Pipeline"
@@ -128,45 +186,7 @@ export default async function DashboardHome() {
         )}
       </section>
 
-      {/* 5. Today's schedule */}
-      <section>
-        <SectionHeader
-          title="Today's Schedule"
-          action={
-            <Link href="/schedule" className="text-sm font-semibold text-mint-dark">
-              Full schedule
-            </Link>
-          }
-        />
-        {todaysAppointments.length > 0 ? (
-          <div className="space-y-2">
-            {todaysAppointments.map((a) => (
-              <div
-                key={a.id}
-                className="flex items-center gap-3 rounded-card border border-line bg-white p-3"
-              >
-                <div className="h-10 w-1.5 rounded-full bg-mint" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold text-text-primary">
-                    {a.title}
-                  </p>
-                  <p className="truncate text-sm text-text-secondary">
-                    {a.client?.name ?? "—"}
-                    {a.assigned_to ? ` · ${a.assigned_to}` : ""}
-                  </p>
-                </div>
-                <span className="text-sm font-semibold text-text-primary">
-                  {formatTime(a.scheduled_at, tz)}
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <EmptyState title="No jobs scheduled today" />
-        )}
-      </section>
-
-      {/* lifetime total footer */}
+      {/* footer */}
       <p className="pb-2 text-center text-xs text-text-secondary">
         {invoices.filter((i) => i.status === "paid").length} jobs closed ·{" "}
         {formatCurrency(
@@ -204,4 +224,3 @@ function StatPill({
     </div>
   );
 }
-

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { createAppointmentAction } from "@/lib/actions";
+import { createCalendarAppointmentAction } from "@/lib/actions";
 import { Modal } from "@/components/ui/Modal";
 import { Input, Textarea } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -30,7 +30,7 @@ export function AppointmentForm({
           </p>
         ) : (
           <form
-            action={(fd) => start(() => createAppointmentAction(fd))}
+            action={(fd) => start(async () => { await createCalendarAppointmentAction(fd); })}
             className="space-y-4"
           >
             <label className="block">

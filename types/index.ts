@@ -131,16 +131,27 @@ export interface Message {
   created_at: string;
 }
 
+export type AppointmentStatus =
+  | "confirmed"
+  | "cancelled"
+  | "showed"
+  | "no_show"
+  | "invalid"
+  | "unconfirmed";
+
 export interface Appointment {
   id: string;
   user_id: string;
-  client_id: string;
-  ghl_event_id: string | null;
   title: string;
+  start_time: string;
+  end_time: string;
+  status: AppointmentStatus;
+  contact_id: string | null;
+  contact_name: string | null;
   notes: string | null;
-  scheduled_at: string;
-  duration_minutes: number;
   assigned_to: string | null;
+  job_type: string | null;
+  ghl_event_id: string | null;
   created_at: string;
 }
 

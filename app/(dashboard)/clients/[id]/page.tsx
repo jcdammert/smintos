@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
-import { getClient, getEstimates, getInvoices, getNotes } from "@/lib/data";
+import {
+  getClient,
+  getEstimatesForClient,
+  getInvoicesForClient,
+  getNotes,
+} from "@/lib/data";
 import { Card, SectionHeader, EmptyState } from "@/components/ui/Card";
 import { EstimateBadge, InvoiceBadge } from "@/components/ui/Badge";
 import { LinkButton } from "@/components/ui/Button";
@@ -22,14 +27,12 @@ export default async function ClientDetailPage({
   const client = await getClient(user.id, params.id);
   if (!client) notFound();
 
-  const [allEstimates, allInvoices, notes, tz] = await Promise.all([
-    getEstimates(user.id),
-    getInvoices(user.id),
+  const [estimates, invoices, notes, tz] = await Promise.all([
+    getEstimatesForClient(user.id, client.id),
+    getInvoicesForClient(user.id, client.id),
     getNotes(user.id, client.id),
     getUserTimezone(),
   ]);
-  const estimates = allEstimates.filter((e) => e.client_id === client.id);
-  const invoices = allInvoices.filter((i) => i.client_id === client.id);
 
   return (
     <div className="space-y-5">

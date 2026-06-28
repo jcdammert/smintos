@@ -3,7 +3,11 @@
 import { useState, useTransition } from "react";
 import { createInvoiceAction, updateInvoiceDetailsAction } from "@/lib/actions";
 import { Button } from "@/components/ui/Button";
-import { ProductPicker } from "@/components/modules/ProductPicker";
+import dynamic from "next/dynamic";
+const ProductPicker = dynamic(
+  () => import("@/components/modules/ProductPicker").then((m) => ({ default: m.ProductPicker })),
+  { ssr: false, loading: () => <div className="h-10 animate-pulse rounded-card bg-line" /> },
+);
 import { formatCurrency } from "@/lib/format";
 import type { Client, Discount, Invoice, LineItem, Product } from "@/types";
 

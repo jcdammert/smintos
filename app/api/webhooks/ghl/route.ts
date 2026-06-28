@@ -352,20 +352,26 @@ export async function POST(req: Request) {
         const eventId =
           pickString(a, ["id", "appointment_id", "appointmentId", "_id"]) ?? "";
         if (!eventId) break;
+        const rawStart =
+          pickString(a, ["startTime", "start_time", "scheduled_at"]) ??
+          new Date().toISOString();
+        const durationMs =
+          Number((a.duration as number | string | undefined) ?? 3600000);
+        const endTs = new Date(
+          new Date(rawStart).getTime() + (durationMs > 1000 ? durationMs : durationMs * 60000),
+        ).toISOString();
         await supabase.from("appointments").upsert(
           {
             user_id: userId,
             ghl_event_id: eventId,
             title: pickString(a, ["title", "appointment_title"]) ?? "Appointment",
             notes: pickString(a, ["notes", "appointment_notes"]),
-            scheduled_at:
-              pickString(a, ["startTime", "start_time", "scheduled_at"]) ??
-              new Date().toISOString(),
-            duration_minutes:
-              Number((a.duration as number | string | undefined) ?? 60) || 60,
+            start_time: rawStart,
+            end_time: endTs,
+            status: pickString(a, ["appointmentStatus", "status"]) ?? "unconfirmed",
+            contact_id: pickString(a, ["contactId", "contact_id"]),
+            contact_name: pickString(a, ["contactName", "contact_name"]),
             assigned_to: pickString(a, ["assignedUserId", "assigned_user_id"]),
-            // client_id intentionally omitted on conflict-update so we don't
-            // clobber a Smintos-created appointment's client reference.
           },
           { onConflict: "ghl_event_id" },
         );

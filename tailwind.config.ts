@@ -22,7 +22,7 @@ const config: Config = {
       },
       fontFamily: {
         display: ['"Clash Display"', "ui-sans-serif", "system-ui", "sans-serif"],
-        sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+        sans: ["var(--font-inter)", "ui-sans-serif", "system-ui", "sans-serif"],
       },
     },
   },

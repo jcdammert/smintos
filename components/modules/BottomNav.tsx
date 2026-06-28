@@ -2,11 +2,25 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FabSheet } from "@/components/modules/FabSheet";
+import dynamic from "next/dynamic";
+
+const FabSheet = dynamic(
+  () => import("@/components/modules/FabSheet").then((m) => ({ default: m.FabSheet })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="-mt-7 flex h-14 w-14 items-center justify-center rounded-full bg-mint shadow-lg shadow-mint/40">
+        <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="2.4">
+          <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+        </svg>
+      </div>
+    ),
+  },
+);
 
 const tabs = [
   { href: "/", label: "Home", icon: HomeIcon },
-  { href: "/library", label: "Library", icon: LibraryIcon },
+  { href: "/calendar", label: "Calendar", icon: CalendarIcon },
   { href: "/messages", label: "Messages", icon: ChatIcon },
   { href: "/settings", label: "Account", icon: UserIcon },
 ];

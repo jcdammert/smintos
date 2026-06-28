@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { EstimateBadge, InvoiceBadge } from "@/components/ui/Badge";
 import { formatCurrency } from "@/lib/format";
-import type { WithClient, Estimate, Invoice, Appointment } from "@/types";
+import type { WithClient, Estimate, Invoice } from "@/types";
 import { ConvertButton, MarkPaidButton } from "@/components/modules/PipelineActions";
 
 type PipelineKind = "estimate" | "appointment" | "invoice";
@@ -83,20 +83,3 @@ export function InvoicePipelineCard({ item }: { item: WithClient<Invoice> }) {
   );
 }
 
-export function AppointmentPipelineCard({
-  item,
-}: {
-  item: WithClient<Appointment>;
-}) {
-  return (
-    <div className="flex items-center gap-3 rounded-card border border-line bg-white p-3">
-      <Icon kind="appointment" />
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-semibold text-text-primary">{item.title}</p>
-        <p className="truncate text-sm text-text-secondary">
-          {item.client?.name ?? "Unknown client"}
-        </p>
-      </div>
-    </div>
-  );
-}
