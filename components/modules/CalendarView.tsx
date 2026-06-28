@@ -363,11 +363,27 @@ function CreateSheet({
   const [title, setTitle] = useState("");
   const [contactName, setContactName] = useState(defaultContactName ?? "");
 
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const dateStr = `${defaultDate.getFullYear()}-${pad(defaultDate.getMonth()+1)}-${pad(defaultDate.getDate())}`;
+
+  const [startVal, setStartVal] = useState(`${dateStr}T08:00`);
+  const [endVal,   setEndVal]   = useState(`${dateStr}T09:00`);
+
+  function handleStartChange(newStart: string) {
+    setStartVal(newStart);
+    // Preserve current duration; default 60 min
+    const prevDuration = Math.max(
+      (new Date(endVal).getTime() - new Date(startVal).getTime()) / 60000,
+      60,
+    );
+    const newEnd = new Date(new Date(newStart).getTime() + prevDuration * 60000);
+    setEndVal(
+      `${newEnd.getFullYear()}-${pad(newEnd.getMonth()+1)}-${pad(newEnd.getDate())}T${pad(newEnd.getHours())}:${pad(newEnd.getMinutes())}`,
+    );
+  }
+
   useEffect(() => { const t = requestAnimationFrame(() => setVisible(true)); return () => cancelAnimationFrame(t); }, []);
   function close() { setVisible(false); setTimeout(onClose, 280); }
-
-  const pad = (n: number) => String(n).padStart(2,"0");
-  const dateStr = `${defaultDate.getFullYear()}-${pad(defaultDate.getMonth()+1)}-${pad(defaultDate.getDate())}`;
 
   function handleSubmit(fd: FormData) {
     setError(null);
@@ -420,8 +436,10 @@ function CreateSheet({
             <AddressAutocompleteInput />
 
             <div className="grid grid-cols-2 gap-3">
-              <Input id="start_time" name="start_time" type="datetime-local" label="Start" defaultValue={`${dateStr}T08:00`} required />
-              <Input id="end_time"   name="end_time"   type="datetime-local" label="End"   defaultValue={`${dateStr}T09:00`} required />
+              <Input id="start_time" name="start_time" type="datetime-local" label="Start"
+                value={startVal} onChange={(e) => handleStartChange(e.target.value)} required />
+              <Input id="end_time"   name="end_time"   type="datetime-local" label="End"
+                value={endVal}   onChange={(e) => setEndVal(e.target.value)}          required />
             </div>
 
             <Input id="assigned_to" name="assigned_to" label="Assigned to" placeholder="Crew member name" />
