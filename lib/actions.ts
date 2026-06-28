@@ -273,7 +273,11 @@ export async function updateClientAction(
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const name = toTitleCase(String(formData.get("name") ?? ""));
+  const firstName    = toTitleCase(String(formData.get("first_name")    ?? ""));
+  const lastName     = toTitleCase(String(formData.get("last_name")     ?? ""));
+  const businessName = toTitleCase(String(formData.get("business_name") ?? ""));
+  const fullName = [firstName, lastName].filter(Boolean).join(" ");
+  const name = fullName || businessName;
   const phone = String(formData.get("phone") ?? "").trim() || null;
   const email = String(formData.get("email") ?? "").trim() || null;
   const address = String(formData.get("address") ?? "").trim() || null;
@@ -299,9 +303,14 @@ export async function updateClientAction(
       .maybeSingle();
     if (client?.ghl_contact_id) {
       await updateContact(user.ghl_location_id, user.ghl_api_key, client.ghl_contact_id, {
-        name, phone: phone ?? undefined, email: email ?? undefined,
-        address1: address ?? undefined, city: city ?? undefined,
-        state: state ?? undefined, postalCode: postalCode ?? undefined,
+        name,
+        firstName: firstName || undefined,
+        phone: phone ?? undefined,
+        email: email ?? undefined,
+        address1: address ?? undefined,
+        city: city ?? undefined,
+        state: state ?? undefined,
+        postalCode: postalCode ?? undefined,
         country: country ?? undefined,
       });
     }
