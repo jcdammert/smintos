@@ -151,6 +151,7 @@ export interface Appointment {
   notes: string | null;
   assigned_to: string | null;
   job_type: string | null;
+  address: string | null;
   ghl_event_id: string | null;
   created_at: string;
 }

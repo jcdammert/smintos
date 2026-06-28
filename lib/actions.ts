@@ -1061,6 +1061,7 @@ export async function createCalendarAppointmentAction(
   const contactName = String(formData.get("contact_name") ?? "").trim() || null;
   const contactId = String(formData.get("contact_id") ?? "").trim() || null;
   const jobType = String(formData.get("job_type") ?? "").trim() || null;
+  const address = String(formData.get("address") ?? "").trim() || null;
   const startTime = String(formData.get("start_time") ?? "");
   const endTime = String(formData.get("end_time") ?? "");
   const assignedTo = String(formData.get("assigned_to") ?? "").trim() || null;
@@ -1101,6 +1102,7 @@ export async function createCalendarAppointmentAction(
     contact_id: contactId,
     contact_name: contactName,
     job_type: jobType,
+    address,
     assigned_to: assignedTo,
     notes,
     ghl_event_id: ghlEventId,
