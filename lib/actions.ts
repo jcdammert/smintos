@@ -1057,7 +1057,7 @@ export async function createCalendarAppointmentAction(
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "Not signed in." };
 
-  const title = String(formData.get("title") ?? "").trim();
+  let title = String(formData.get("title") ?? "").trim();
   const contactName = String(formData.get("contact_name") ?? "").trim() || null;
   const contactId = String(formData.get("contact_id") ?? "").trim() || null;
   const jobType = String(formData.get("job_type") ?? "").trim() || null;
@@ -1067,9 +1067,11 @@ export async function createCalendarAppointmentAction(
   const assignedTo = String(formData.get("assigned_to") ?? "").trim() || null;
   const notes = String(formData.get("notes") ?? "").trim() || null;
 
-  if (!title || !startTime || !endTime) {
-    return { ok: false, error: "Title, start time and end time are required." };
+  if (!startTime || !endTime) {
+    return { ok: false, error: "Start time and end time are required." };
   }
+  // Fall back to contact name or job type as the display title
+  if (!title) title = contactName || jobType || "Appointment";
 
   const startIso = new Date(startTime).toISOString();
   const endIso = new Date(endTime).toISOString();
@@ -1082,7 +1084,7 @@ export async function createCalendarAppointmentAction(
       user.ghl_api_key!,
       {
         contactId,
-        title,
+        title: title || "Appointment",
         startTime: startIso,
         endTime: endIso,
         notes: notes ?? undefined,

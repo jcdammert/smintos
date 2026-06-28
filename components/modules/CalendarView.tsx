@@ -171,15 +171,14 @@ function JobTitlePicker({
   return (
     <div className="relative">
       <label className="block">
-        <span className="mb-1.5 block text-sm font-medium text-text-primary">Job title</span>
+        <span className="mb-1.5 block text-sm font-medium text-text-primary">Job title <span className="font-normal text-text-secondary">(optional)</span></span>
         <input
           name="title"
           value={value}
-          required
           autoComplete="off"
           onChange={(e) => { onChange(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}
-          placeholder="Search estimates, invoices, or products…"
+          placeholder="Pick from estimates, invoices, or products…"
           className="min-h-[48px] w-full rounded-card border border-line bg-white px-4 text-base text-text-primary outline-none transition focus:border-mint focus:ring-2 focus:ring-mint/30 placeholder:text-text-secondary"
         />
       </label>
@@ -408,15 +407,15 @@ function CreateSheet({
             {/* Hidden GHL contact ID */}
             <input type="hidden" name="contact_id" value={defaultContactId ?? ""} />
 
-            {/* Job title — picks from estimates / invoices / products */}
+            <Input id="job_type" name="job_type" label="Job type" placeholder="Auto tint, Residential…" />
+
+            {/* Job title — optional, picks from estimates / invoices / products */}
             <JobTitlePicker
               contactId={defaultContactId}
               contactName={contactName || defaultContactName}
               value={title}
               onChange={setTitle}
             />
-
-            <Input id="job_type" name="job_type" label="Job type" placeholder="Auto tint, Residential…" />
 
             <AddressAutocompleteInput />
 
