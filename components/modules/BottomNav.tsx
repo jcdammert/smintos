@@ -20,7 +20,7 @@ const FabSheet = dynamic(
 
 const tabs = [
   { href: "/", label: "Home", icon: HomeIcon },
-  { href: "/calendar", label: "Calendar", icon: CalendarIcon },
+  { href: "/library", label: "Library", icon: LibraryIcon },
   { href: "/messages", label: "Messages", icon: ChatIcon },
   { href: "/settings", label: "Account", icon: UserIcon },
 ];

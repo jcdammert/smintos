@@ -19,8 +19,8 @@ import type { Appointment, AppointmentStatus } from "@/types";
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 
-const START_HOUR = 7;
-const END_HOUR = 20;
+const START_HOUR = 0;
+const END_HOUR = 23;
 const HOUR_HEIGHT = 64; // px per hour
 const TOTAL_HEIGHT = (END_HOUR - START_HOUR) * HOUR_HEIGHT;
 const HOURS = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i);
@@ -113,7 +113,7 @@ function TimeLabel({ hour }: { hour: number }) {
       style={{ top: (hour - START_HOUR) * HOUR_HEIGHT }}
     >
       <span className="text-[10px] leading-none text-text-secondary">
-        {hour === 12 ? "12pm" : hour < 12 ? `${hour}am` : `${hour - 12}pm`}
+        {hour === 0 ? "12am" : hour < 12 ? `${hour}am` : hour === 12 ? "12pm" : `${hour - 12}pm`}
       </span>
     </div>
   );

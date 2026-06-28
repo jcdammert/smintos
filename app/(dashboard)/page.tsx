@@ -106,7 +106,7 @@ export default async function DashboardHome() {
           title="Today's Jobs"
           action={
             <Link href="/calendar" className="text-sm font-semibold text-mint-dark">
-              Calendar
+              View Calendar →
             </Link>
           }
         />
