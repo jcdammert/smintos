@@ -1769,3 +1769,77 @@ export async function updateSettingsAction(formData: FormData) {
   revalidatePath("/settings");
   revalidatePath("/");
 }
+
+// --- Calendar create-sheet pickers ----------------------------------------
+
+/** Fetch estimates + invoices for a contact to populate the job-title picker. */
+export async function fetchContactWorkAction(opts: {
+  contactId?: string;
+  contactName?: string;
+}): Promise<{
+  estimates: Array<{ id: string; estimate_number: string; name: string | null; total: number; status: string }>;
+  invoices: Array<{ id: string; invoice_number: string; name: string | null; total: number; status: string }>;
+}> {
+  const user = await getCurrentUser();
+  if (!user) return { estimates: [], invoices: [] };
+
+  const supabase = createServiceSupabase();
+  let clientId: string | null = null;
+
+  if (opts.contactId) {
+    const { data } = await supabase
+      .from("clients")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("ghl_contact_id", opts.contactId)
+      .maybeSingle();
+    clientId = data?.id ?? null;
+  }
+
+  if (!clientId && opts.contactName) {
+    const { data } = await supabase
+      .from("clients")
+      .select("id")
+      .eq("user_id", user.id)
+      .ilike("name", `%${opts.contactName}%`)
+      .limit(1)
+      .maybeSingle();
+    clientId = data?.id ?? null;
+  }
+
+  if (!clientId) return { estimates: [], invoices: [] };
+
+  const [estRes, invRes] = await Promise.all([
+    supabase
+      .from("estimates")
+      .select("id, estimate_number, name, total, status")
+      .eq("user_id", user.id)
+      .eq("client_id", clientId)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("invoices")
+      .select("id, invoice_number, name, total, status")
+      .eq("user_id", user.id)
+      .eq("client_id", clientId)
+      .order("created_at", { ascending: false }),
+  ]);
+
+  return {
+    estimates: (estRes.data ?? []) as Array<{ id: string; estimate_number: string; name: string | null; total: number; status: string }>,
+    invoices: (invRes.data ?? []) as Array<{ id: string; invoice_number: string; name: string | null; total: number; status: string }>,
+  };
+}
+
+/** Fetch the user's products for use in the job-title picker. */
+export async function fetchProductsForPickerAction(): Promise<
+  Array<{ id: string; name: string; unit_price: number }>
+> {
+  const user = await getCurrentUser();
+  if (!user) return [];
+  const { data } = await createServiceSupabase()
+    .from("products")
+    .select("id, name, unit_price")
+    .eq("user_id", user.id)
+    .order("name");
+  return (data ?? []) as Array<{ id: string; name: string; unit_price: number }>;
+}
