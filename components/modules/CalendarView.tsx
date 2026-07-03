@@ -662,6 +662,12 @@ function CreateSheet({
 
   function handleSubmit(fd: FormData) {
     setError(null);
+    // Convert datetime-local strings (no tz) to ISO via the browser so the
+    // correct local time is preserved when the server parses them as UTC.
+    const s = fd.get("start_time") as string;
+    const e = fd.get("end_time")   as string;
+    if (s) fd.set("start_time", new Date(s).toISOString());
+    if (e) fd.set("end_time",   new Date(e).toISOString());
     start(async () => {
       const res = await createCalendarAppointmentAction(fd);
       if (!res.ok) setError(res.error ?? "Something went wrong.");
