@@ -805,7 +805,7 @@ export async function setEstimateStatusAction(
 
 // --- Estimate -> Invoice conversion --------------------------------------
 
-export async function convertEstimateToInvoiceAction(estimateId: string) {
+export async function convertEstimateToInvoiceAction(estimateId: string, appointmentId?: string | null) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
@@ -852,6 +852,7 @@ export async function convertEstimateToInvoiceAction(estimateId: string) {
       user_id: user.id,
       client_id: estimate.client_id,
       estimate_id: estimate.id,
+      appointment_id: appointmentId ?? null,
       ghl_invoice_id: ghlInvoiceId,
       invoice_number: shortNumber("INV"),
       line_items: lineItems,
@@ -864,6 +865,7 @@ export async function convertEstimateToInvoiceAction(estimateId: string) {
 
   revalidatePath("/invoices");
   revalidatePath("/estimates");
+  revalidatePath("/calendar");
   revalidatePath("/");
   if (invoice?.id) redirect(`/invoices/${invoice.id}`);
   redirect("/invoices");
@@ -1061,6 +1063,224 @@ export async function markInvoicePaidAction(invoiceId: string) {
   revalidatePath(`/invoices/${invoiceId}`);
   revalidatePath("/invoices");
   revalidatePath("/");
+}
+
+// --- Estimate → Appointment conversion ------------------------------------
+
+export async function convertEstimateToAppointmentAction(estimateId: string) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const supabase = createServiceSupabase();
+  const { data: estimate } = await supabase
+    .from("estimates")
+    .select("*, client:clients(id, name, address, ghl_contact_id)")
+    .eq("user_id", user.id)
+    .eq("id", estimateId)
+    .maybeSingle();
+
+  if (!estimate) redirect("/estimates");
+
+  const client = estimate.client as { id: string; name: string; address: string | null; ghl_contact_id: string | null } | null;
+  const title = (estimate.name as string | null) ?? (estimate.estimate_number as string);
+  const contactName = client?.name ?? null;
+  const contactId = client?.ghl_contact_id ?? null;
+  const address = client?.address ?? null;
+  const jobType = (estimate.name as string | null) ?? null;
+
+  // Default: tomorrow 9 am – 10 am local (server) time
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(9, 0, 0, 0);
+  const startIso = tomorrow.toISOString();
+  const endIso = new Date(tomorrow.getTime() + 3600000).toISOString();
+
+  let ghlEventId: string | null = null;
+  if (hasGhlCreds(user) && contactId) {
+    const res = await createCalendarEvent(user.ghl_location_id!, user.ghl_api_key!, {
+      contactId,
+      title: title || "Appointment",
+      startTime: startIso,
+      endTime: endIso,
+    });
+    if (res.ok) ghlEventId = res.data?.event?.id ?? res.data?.id ?? null;
+  }
+
+  const { data: apt } = await supabase
+    .from("appointments")
+    .insert({
+      user_id: user.id,
+      estimate_id: estimateId,
+      title,
+      contact_name: contactName,
+      contact_id: contactId,
+      address,
+      job_type: jobType,
+      start_time: startIso,
+      end_time: endIso,
+      status: "unconfirmed",
+      ghl_event_id: ghlEventId,
+    })
+    .select("id")
+    .maybeSingle();
+
+  revalidatePath("/calendar");
+  revalidatePath(`/estimates/${estimateId}`);
+  revalidatePath("/");
+
+  if (apt?.id) redirect(`/calendar?job=${apt.id}`);
+  redirect("/calendar");
+}
+
+// --- Appointment → Invoice conversion -------------------------------------
+
+export async function convertAppointmentToInvoiceAction(appointmentId: string) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const supabase = createServiceSupabase();
+  const { data: apt } = await supabase
+    .from("appointments")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("id", appointmentId)
+    .maybeSingle();
+
+  if (!apt) redirect("/calendar");
+
+  let lineItems: LineItem[] = [];
+  let total = 0;
+  let clientId: string | null = null;
+  const estimateId: string | null = apt.estimate_id ?? null;
+
+  if (estimateId) {
+    const { data: est } = await supabase
+      .from("estimates")
+      .select("client_id, line_items, total")
+      .eq("user_id", user.id)
+      .eq("id", estimateId)
+      .maybeSingle();
+    if (est) {
+      lineItems = (est.line_items as LineItem[]) ?? [];
+      total = Number(est.total) || 0;
+      clientId = est.client_id ?? null;
+    }
+  }
+
+  if (!clientId && apt.contact_id) {
+    const { data: cl } = await supabase
+      .from("clients")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("ghl_contact_id", apt.contact_id)
+      .maybeSingle();
+    clientId = cl?.id ?? null;
+  }
+
+  if (!clientId) redirect(`/appointments/${appointmentId}`);
+
+  const invName = (apt.title as string | null) ?? (apt.contact_name ? `Invoice for ${apt.contact_name as string}` : "Invoice");
+
+  let ghlInvoiceId: string | null = null;
+  const { data: fullClient } = await supabase
+    .from("clients")
+    .select("ghl_contact_id, name, phone, email")
+    .eq("user_id", user.id)
+    .eq("id", clientId)
+    .maybeSingle();
+
+  if (hasGhlCreds(user) && fullClient?.ghl_contact_id) {
+    const { data: userRec } = await supabase
+      .from("users")
+      .select("business_name")
+      .eq("id", user.id)
+      .maybeSingle();
+    const res = await createInvoice(
+      user.ghl_location_id,
+      user.ghl_api_key,
+      buildGhlInvoiceBody({
+        contactId: fullClient.ghl_contact_id,
+        contactName: fullClient.name ?? "Client",
+        contactPhone: fullClient.phone,
+        contactEmail: fullClient.email,
+        businessName: userRec?.business_name ?? "My Business",
+        invoiceName: invName,
+        lineItems,
+        total,
+      }),
+    );
+    if (res.ok) {
+      const d = res.data as Record<string, unknown> | null;
+      ghlInvoiceId =
+        (d?.invoiceId as string | undefined) ??
+        (d?._id as string | undefined) ??
+        (d?.id as string | undefined) ??
+        null;
+    }
+  }
+
+  const { data: inv } = await supabase
+    .from("invoices")
+    .insert({
+      user_id: user.id,
+      client_id: clientId,
+      estimate_id: estimateId,
+      appointment_id: appointmentId,
+      ghl_invoice_id: ghlInvoiceId,
+      invoice_number: shortNumber("INV"),
+      name: invName,
+      line_items: lineItems,
+      total,
+      status: "sent",
+      due_date: new Date(Date.now() + 14 * 86400000).toISOString(),
+    })
+    .select("id")
+    .maybeSingle();
+
+  revalidatePath("/invoices");
+  revalidatePath(`/appointments/${appointmentId}`);
+  revalidatePath("/calendar");
+  revalidatePath("/");
+
+  if (inv?.id) redirect(`/invoices/${inv.id}`);
+  redirect("/invoices");
+}
+
+/** Fetch estimate + invoice links for an appointment — used in the calendar detail sheet. */
+export async function fetchAppointmentLinksAction(
+  aptId: string,
+  estimateId: string | null,
+): Promise<{
+  estimate: { id: string; estimate_number: string; name: string | null; total: number } | null;
+  invoice: { id: string; invoice_number: string; name: string | null; total: number; status: string } | null;
+}> {
+  const user = await getCurrentUser();
+  if (!user) return { estimate: null, invoice: null };
+
+  const supabase = createServiceSupabase();
+  const [estRes, invRes] = await Promise.all([
+    estimateId
+      ? supabase
+          .from("estimates")
+          .select("id, estimate_number, name, total")
+          .eq("user_id", user.id)
+          .eq("id", estimateId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    supabase
+      .from("invoices")
+      .select("id, invoice_number, name, total, status")
+      .eq("user_id", user.id)
+      .eq("appointment_id", aptId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  return {
+    estimate: (estRes.data ?? null) as { id: string; estimate_number: string; name: string | null; total: number } | null,
+    invoice: (invRes.data ?? null) as { id: string; invoice_number: string; name: string | null; total: number; status: string } | null,
+  };
 }
 
 // --- Appointments ---------------------------------------------------------

@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
-import { getEstimate } from "@/lib/data";
+import { getEstimate, getLinkedRecordsForEstimate } from "@/lib/data";
 import { EstimateBadge } from "@/components/ui/Badge";
 import { LinkButton } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { LineItemsTable } from "@/components/modules/LineItemsTable";
 import { EstimateActions } from "@/components/modules/EstimateActions";
+import { EstimateConvertActions } from "@/components/modules/EstimateConvertActions";
+import { LinkedRecords } from "@/components/modules/LinkedRecords";
 import { DeleteEstimateButton } from "@/components/modules/DeleteButton";
 import { formatDate } from "@/lib/format";
 import { getUserTimezone } from "@/lib/timezone";
@@ -26,6 +28,8 @@ export default async function EstimateDetailPage({
     getUserTimezone(),
   ]);
   if (!estimate) notFound();
+
+  const linked = await getLinkedRecordsForEstimate(user.id, estimate.id);
 
   return (
     <div className="space-y-5">
@@ -61,10 +65,7 @@ export default async function EstimateDetailPage({
             <dt className="text-text-secondary">Client</dt>
             <dd className="font-medium text-text-primary">
               {estimate.client ? (
-                <Link
-                  href={`/clients/${estimate.client.id}`}
-                  className="text-mint-dark"
-                >
+                <Link href={`/clients/${estimate.client.id}`} className="text-mint-dark">
                   {estimate.client.name}
                 </Link>
               ) : (
@@ -101,7 +102,19 @@ export default async function EstimateDetailPage({
 
       <LineItemsTable items={estimate.line_items} total={estimate.total} />
 
+      <EstimateConvertActions
+        estimateId={estimate.id}
+        hasAppointment={linked.appointments.length > 0}
+        hasInvoice={linked.invoices.length > 0}
+      />
+
       <EstimateActions estimateId={estimate.id} status={estimate.status} />
+
+      <LinkedRecords
+        appointments={linked.appointments}
+        invoices={linked.invoices}
+      />
+
       <DeleteEstimateButton estimateId={estimate.id} />
     </div>
   );

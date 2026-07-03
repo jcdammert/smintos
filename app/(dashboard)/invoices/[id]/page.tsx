@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
-import { getInvoice } from "@/lib/data";
+import { getInvoice, getLinkedAppointmentForInvoice, getEstimate } from "@/lib/data";
 import { InvoiceBadge } from "@/components/ui/Badge";
 import { LinkButton } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { LineItemsTable } from "@/components/modules/LineItemsTable";
 import { InvoiceActions } from "@/components/modules/InvoiceActions";
+import { LinkedRecords } from "@/components/modules/LinkedRecords";
 import { DeleteInvoiceButton } from "@/components/modules/DeleteButton";
 import { formatDate } from "@/lib/format";
 import { getUserTimezone } from "@/lib/timezone";
@@ -26,6 +27,11 @@ export default async function InvoiceDetailPage({
     getUserTimezone(),
   ]);
   if (!invoice) notFound();
+
+  const [linkedAppointment, linkedEstimate] = await Promise.all([
+    getLinkedAppointmentForInvoice(user.id, invoice.appointment_id ?? null),
+    invoice.estimate_id ? getEstimate(user.id, invoice.estimate_id) : Promise.resolve(null),
+  ]);
 
   return (
     <div className="space-y-5">
@@ -61,10 +67,7 @@ export default async function InvoiceDetailPage({
             <dt className="text-text-secondary">Client</dt>
             <dd className="font-medium text-text-primary">
               {invoice.client ? (
-                <Link
-                  href={`/clients/${invoice.client.id}`}
-                  className="text-mint-dark"
-                >
+                <Link href={`/clients/${invoice.client.id}`} className="text-mint-dark">
                   {invoice.client.name}
                 </Link>
               ) : (
@@ -96,25 +99,18 @@ export default async function InvoiceDetailPage({
               {formatDate(invoice.paid_at, tz)}
             </dd>
           </div>
-          {invoice.estimate_id && (
-            <div className="flex justify-between">
-              <dt className="text-text-secondary">From estimate</dt>
-              <dd>
-                <Link
-                  href={`/estimates/${invoice.estimate_id}`}
-                  className="font-medium text-mint-dark"
-                >
-                  View
-                </Link>
-              </dd>
-            </div>
-          )}
         </dl>
       </Card>
 
       <LineItemsTable items={invoice.line_items} total={invoice.total} />
 
       <InvoiceActions invoiceId={invoice.id} status={invoice.status} />
+
+      <LinkedRecords
+        estimates={linkedEstimate ? [linkedEstimate] : []}
+        appointments={linkedAppointment ? [linkedAppointment] : []}
+      />
+
       <DeleteInvoiceButton invoiceId={invoice.id} />
     </div>
   );

@@ -64,6 +64,7 @@ export interface Invoice {
   user_id: string;
   client_id: string;
   estimate_id: string | null;
+  appointment_id: string | null;
   ghl_invoice_id: string | null;
   invoice_number: string;
   name: string | null;
@@ -152,6 +153,7 @@ export interface Appointment {
   assigned_to: string | null;
   job_type: string | null;
   address: string | null;
+  estimate_id: string | null;
   ghl_event_id: string | null;
   created_at: string;
 }

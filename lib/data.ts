@@ -259,6 +259,94 @@ export async function getMessagesForClient(
   return (data as Message[] | null) ?? [];
 }
 
+export async function getAppointment(
+  userId: string,
+  id: string,
+): Promise<Appointment | null> {
+  const supabase = createServiceSupabase();
+  const { data } = await supabase
+    .from("appointments")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("id", id)
+    .maybeSingle();
+  return (data as Appointment | null) ?? null;
+}
+
+export async function getLinkedRecordsForEstimate(
+  userId: string,
+  estimateId: string,
+): Promise<{
+  appointments: Array<Pick<Appointment, "id" | "title" | "start_time" | "status" | "contact_name">>;
+  invoices: Array<Pick<Invoice, "id" | "invoice_number" | "name" | "total" | "status">>;
+}> {
+  const supabase = createServiceSupabase();
+  const [aptRes, invRes] = await Promise.all([
+    supabase
+      .from("appointments")
+      .select("id, title, start_time, status, contact_name")
+      .eq("user_id", userId)
+      .eq("estimate_id", estimateId)
+      .order("start_time", { ascending: true }),
+    supabase
+      .from("invoices")
+      .select("id, invoice_number, name, total, status")
+      .eq("user_id", userId)
+      .eq("estimate_id", estimateId)
+      .order("created_at", { ascending: false }),
+  ]);
+  return {
+    appointments: (aptRes.data ?? []) as Array<Pick<Appointment, "id" | "title" | "start_time" | "status" | "contact_name">>,
+    invoices: (invRes.data ?? []) as Array<Pick<Invoice, "id" | "invoice_number" | "name" | "total" | "status">>,
+  };
+}
+
+export async function getLinkedRecordsForAppointment(
+  userId: string,
+  aptId: string,
+  estimateId: string | null,
+): Promise<{
+  estimate: Pick<Estimate, "id" | "estimate_number" | "name" | "total" | "status"> | null;
+  invoices: Array<Pick<Invoice, "id" | "invoice_number" | "name" | "total" | "status">>;
+}> {
+  const supabase = createServiceSupabase();
+  const [estRes, invRes] = await Promise.all([
+    estimateId
+      ? supabase
+          .from("estimates")
+          .select("id, estimate_number, name, total, status")
+          .eq("user_id", userId)
+          .eq("id", estimateId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    supabase
+      .from("invoices")
+      .select("id, invoice_number, name, total, status")
+      .eq("user_id", userId)
+      .eq("appointment_id", aptId)
+      .order("created_at", { ascending: false }),
+  ]);
+  return {
+    estimate: (estRes.data ?? null) as Pick<Estimate, "id" | "estimate_number" | "name" | "total" | "status"> | null,
+    invoices: (invRes.data ?? []) as Array<Pick<Invoice, "id" | "invoice_number" | "name" | "total" | "status">>,
+  };
+}
+
+export async function getLinkedAppointmentForInvoice(
+  userId: string,
+  appointmentId: string | null,
+): Promise<Pick<Appointment, "id" | "title" | "start_time" | "status" | "contact_name"> | null> {
+  if (!appointmentId) return null;
+  const supabase = createServiceSupabase();
+  const { data } = await supabase
+    .from("appointments")
+    .select("id, title, start_time, status, contact_name")
+    .eq("user_id", userId)
+    .eq("id", appointmentId)
+    .maybeSingle();
+  return (data as Pick<Appointment, "id" | "title" | "start_time" | "status" | "contact_name"> | null) ?? null;
+}
+
 export function isToday(iso: string): boolean {
   const d = new Date(iso);
   const now = new Date();

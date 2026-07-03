@@ -4,7 +4,6 @@ import { useState, useTransition } from "react";
 import {
   sendEstimateAction,
   setEstimateStatusAction,
-  convertEstimateToInvoiceAction,
 } from "@/lib/actions";
 import { SendChannelPicker } from "@/components/modules/SendChannelPicker";
 import type { EstimateStatus } from "@/types";
@@ -87,13 +86,9 @@ export function EstimateActions({
   if (status === "approved") {
     return (
       <div className="space-y-3">
-        <button
-          disabled={pending}
-          onClick={() => start(() => convertEstimateToInvoiceAction(estimateId))}
-          className="min-h-[52px] w-full rounded-card bg-mint text-base font-semibold text-ink transition active:scale-[0.98] disabled:opacity-50"
-        >
-          {pending ? "Converting…" : "Convert to Invoice →"}
-        </button>
+        <p className="rounded-card bg-mint/10 p-3 text-center text-sm font-semibold text-mint-dark">
+          ✓ Approved — use the Convert buttons above to schedule or invoice.
+        </p>
         {overridePicker}
       </div>
     );

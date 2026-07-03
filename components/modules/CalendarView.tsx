@@ -12,9 +12,11 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   createCalendarAppointmentAction,
+  convertAppointmentToInvoiceAction,
   fetchCalendarRangeAction,
   fetchContactWorkAction,
   fetchProductsForPickerAction,
+  fetchAppointmentLinksAction,
 } from "@/lib/actions";
 import { setOptions, importLibrary } from "@googlemaps/js-api-loader";
 import { Input, Textarea } from "@/components/ui/Input";
@@ -280,14 +282,22 @@ const BACKDROP_CLS = "fixed inset-0 z-50 bg-black/40 transition-opacity duration
 
 function JobDetailSheet({ apt, onClose }: { apt: Appointment; onClose: () => void }) {
   const [visible, setVisible] = useState(false);
+  const [invPending, startInv] = useTransition();
+  const [links, setLinks] = useState<{
+    estimate: { id: string; estimate_number: string; name: string | null; total: number } | null;
+    invoice: { id: string; invoice_number: string; name: string | null; total: number; status: string } | null;
+  } | null>(null);
+
   const cfg = STATUS_CFG[apt.status] ?? STATUS_CFG.unconfirmed;
+  const mapsHref = apt.address ? `https://maps.google.com/?q=${encodeURIComponent(apt.address)}` : null;
 
-  useEffect(() => { const t = requestAnimationFrame(() => setVisible(true)); return () => cancelAnimationFrame(t); }, []);
+  useEffect(() => {
+    const t = requestAnimationFrame(() => setVisible(true));
+    fetchAppointmentLinksAction(apt.id, apt.estimate_id ?? null).then(setLinks);
+    return () => cancelAnimationFrame(t);
+  }, [apt.id, apt.estimate_id]);
+
   function close() { setVisible(false); setTimeout(onClose, 280); }
-
-  const estimatesHref = apt.contact_id ? `/estimates?contact=${apt.contact_id}` : "/estimates";
-  const invoicesHref  = apt.contact_id ? `/invoices?contact=${apt.contact_id}`  : "/invoices";
-  const mapsHref      = apt.address ? `https://maps.google.com/?q=${encodeURIComponent(apt.address)}` : null;
 
   return (
     <>
@@ -297,9 +307,16 @@ function JobDetailSheet({ apt, onClose }: { apt: Appointment; onClose: () => voi
           <div className="h-1 w-10 rounded-full bg-line" />
         </div>
         <div className="flex-1 overflow-y-auto px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
-          <div className="mb-4 space-y-1.5">
-            <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${cfg.badge}`}>{cfg.label}</span>
-            <h2 className="font-display text-xl font-bold text-text-primary">{apt.title}</h2>
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div className="space-y-1.5">
+              <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${cfg.badge}`}>{cfg.label}</span>
+              <h2 className="font-display text-xl font-bold text-text-primary">{apt.title}</h2>
+            </div>
+            <Link href={`/appointments/${apt.id}`} onClick={close}
+              className="flex-shrink-0 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-semibold text-text-secondary"
+            >
+              Details →
+            </Link>
           </div>
           <dl className="mb-5 space-y-3 text-sm">
             {apt.contact_name && <DetailRow label="Contact"     value={apt.contact_name} />}
@@ -310,13 +327,48 @@ function JobDetailSheet({ apt, onClose }: { apt: Appointment; onClose: () => voi
             {apt.assigned_to && <DetailRow label="Assigned to" value={apt.assigned_to} />}
             {apt.notes        && <DetailRow label="Notes"       value={apt.notes} />}
           </dl>
+
+          {/* Convert to Invoice */}
+          {links !== null && !links.invoice && (
+            <button
+              type="button"
+              disabled={invPending}
+              onClick={() => startInv(async () => { await convertAppointmentToInvoiceAction(apt.id); close(); })}
+              className="mb-4 min-h-[48px] w-full rounded-card bg-mint text-sm font-semibold text-ink transition active:scale-[0.98] disabled:opacity-50"
+            >
+              {invPending ? "Creating invoice…" : "Convert to Invoice →"}
+            </button>
+          )}
+          {links?.invoice && (
+            <Link href={`/invoices/${links.invoice.id}`} onClick={close}
+              className="mb-4 flex min-h-[48px] items-center justify-center rounded-card bg-mint/10 text-sm font-semibold text-mint-dark"
+            >
+              ✓ Invoice created — View Invoice →
+            </Link>
+          )}
+
+          {/* Linked records */}
+          {(links?.estimate || links?.invoice) && (
+            <div className="mb-4 space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary">Linked</p>
+              {links.estimate && (
+                <Link href={`/estimates/${links.estimate.id}`} onClick={close}
+                  className="flex items-center justify-between gap-2 rounded-card border border-line bg-white px-3 py-2.5 text-sm"
+                >
+                  <span className="text-text-secondary">Estimate</span>
+                  <span className="font-semibold text-text-primary">{links.estimate.name || links.estimate.estimate_number}</span>
+                </Link>
+              )}
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-2">
-            <SheetLink href="/clients"      label="View Contact"   icon="👤" />
-            <SheetLink href={estimatesHref} label="View Estimates" icon="📋" />
-            <SheetLink href={invoicesHref}  label="View Invoices"  icon="💰" />
+            <SheetLink href="/clients"       label="View Contact"   icon="👤" />
+            <SheetLink href="/estimates"     label="View Estimates" icon="📋" />
+            <SheetLink href="/invoices"      label="View Invoices"  icon="💰" />
             {mapsHref
               ? <SheetLink href={mapsHref} label="Get Directions" icon="🗺️" external />
-              : <SheetLink href="#" label="Job Notes" icon="📝" onClick={close} />}
+              : <SheetLink href={`/appointments/${apt.id}`} label="Full Details" icon="📝" onClick={close} />}
           </div>
         </div>
       </div>
