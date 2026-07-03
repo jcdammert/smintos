@@ -1119,7 +1119,7 @@ export async function convertEstimateToAppointmentAction(estimateId: string) {
       job_type: jobType,
       start_time: startIso,
       end_time: endIso,
-      status: "unconfirmed",
+      status: "confirmed",
       ghl_event_id: ghlEventId,
     })
     .select("id")
@@ -1337,7 +1337,7 @@ export async function createCalendarAppointmentAction(
     title,
     start_time: startIso,
     end_time: endIso,
-    status: "unconfirmed",
+    status: "confirmed",
     contact_id: contactId,
     contact_name: contactName,
     job_type: jobType,
