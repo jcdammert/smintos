@@ -400,12 +400,18 @@ function CreateSheet({
   defaultDate,
   defaultContactName,
   defaultContactId,
+  defaultEstimateId,
+  defaultAddress,
+  defaultJobType,
   onClose,
   onCreated,
 }: {
   defaultDate: Date;
   defaultContactName?: string;
   defaultContactId?: string;
+  defaultEstimateId?: string;
+  defaultAddress?: string;
+  defaultJobType?: string;
   onClose: () => void;
   onCreated: () => void;
 }) {
@@ -472,10 +478,12 @@ function CreateSheet({
               />
             </label>
 
-            {/* Hidden GHL contact ID */}
-            <input type="hidden" name="contact_id" value={defaultContactId ?? ""} />
+            {/* Hidden fields */}
+            <input type="hidden" name="contact_id"  value={defaultContactId  ?? ""} />
+            <input type="hidden" name="estimate_id" value={defaultEstimateId ?? ""} />
 
-            <Input id="job_type" name="job_type" label="Job type" placeholder="Auto tint, Residential…" />
+            <Input id="job_type" name="job_type" label="Job type" placeholder="Auto tint, Residential…"
+              defaultValue={defaultJobType} />
 
             {/* Job title — optional, picks from estimates / invoices / products */}
             <JobTitlePicker
@@ -485,7 +493,7 @@ function CreateSheet({
               onChange={setTitle}
             />
 
-            <AddressAutocompleteInput />
+            <AddressAutocompleteInput defaultValue={defaultAddress} />
 
             <div className="grid grid-cols-2 gap-3">
               <Input id="start_time" name="start_time" type="datetime-local" label="Start"
@@ -527,6 +535,13 @@ export function CalendarView({
   const [appointments, setAppointments] = useState(initialAppointments);
   const [selectedAppt, setSelectedAppt] = useState<Appointment | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [createDefaults, setCreateDefaults] = useState<{
+    contactName?: string;
+    contactId?: string;
+    estimateId?: string;
+    address?: string;
+    jobType?: string;
+  }>({});
   const [, startFetch] = useTransition();
 
   const headerRef = useRef<HTMLDivElement>(null);
@@ -540,11 +555,18 @@ export function CalendarView({
     }
   }, [searchParams, appointments]);
 
-  // Reactive to URL changes so the FAB works even when already on /calendar
+  // Reactive to URL changes so the FAB / estimate "→ Schedule" button works even when already on /calendar
   useEffect(() => {
     if (searchParams.get("new") === "1") {
+      // Capture all prefill params before clearing the URL
+      setCreateDefaults({
+        contactName: searchParams.get("contact_name") ?? undefined,
+        contactId:   searchParams.get("contact_id")   ?? undefined,
+        estimateId:  searchParams.get("estimate_id")  ?? undefined,
+        address:     searchParams.get("address")      ?? undefined,
+        jobType:     searchParams.get("job_type")     ?? undefined,
+      });
       setCreateOpen(true);
-      // Clear the param so re-tapping the FAB triggers navigation again
       router.replace("/calendar", { scroll: false });
     }
   }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -659,9 +681,12 @@ export function CalendarView({
       {createOpen && (
         <CreateSheet
           defaultDate={currentDate}
-          defaultContactName={searchParams.get("contact_name") ?? undefined}
-          defaultContactId={searchParams.get("contact_id") ?? undefined}
-          onClose={()=>setCreateOpen(false)}
+          defaultContactName={createDefaults.contactName}
+          defaultContactId={createDefaults.contactId}
+          defaultEstimateId={createDefaults.estimateId}
+          defaultAddress={createDefaults.address}
+          defaultJobType={createDefaults.jobType}
+          onClose={()=>{ setCreateOpen(false); setCreateDefaults({}); }}
           onCreated={()=>fetchRange(currentDate)}
         />
       )}

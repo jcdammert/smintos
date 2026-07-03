@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
-import { getEstimate, getLinkedRecordsForEstimate } from "@/lib/data";
+import { getEstimate, getLinkedRecordsForEstimate, getClient } from "@/lib/data";
 import { EstimateBadge } from "@/components/ui/Badge";
 import { LinkButton } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -29,7 +29,10 @@ export default async function EstimateDetailPage({
   ]);
   if (!estimate) notFound();
 
-  const linked = await getLinkedRecordsForEstimate(user.id, estimate.id);
+  const [linked, fullClient] = await Promise.all([
+    getLinkedRecordsForEstimate(user.id, estimate.id),
+    getClient(user.id, estimate.client_id),
+  ]);
 
   return (
     <div className="space-y-5">
@@ -106,6 +109,12 @@ export default async function EstimateDetailPage({
         estimateId={estimate.id}
         hasAppointment={linked.appointments.length > 0}
         hasInvoice={linked.invoices.length > 0}
+        prefill={{
+          contactName: fullClient?.name ?? null,
+          contactId: fullClient?.ghl_contact_id ?? null,
+          address: fullClient?.address ?? null,
+          jobType: estimate.name ?? null,
+        }}
       />
 
       <EstimateActions estimateId={estimate.id} status={estimate.status} />

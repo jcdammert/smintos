@@ -1293,13 +1293,14 @@ export async function createCalendarAppointmentAction(
 
   let title = String(formData.get("title") ?? "").trim();
   const contactName = String(formData.get("contact_name") ?? "").trim() || null;
-  const contactId = String(formData.get("contact_id") ?? "").trim() || null;
-  const jobType = String(formData.get("job_type") ?? "").trim() || null;
-  const address = String(formData.get("address") ?? "").trim() || null;
-  const startTime = String(formData.get("start_time") ?? "");
-  const endTime = String(formData.get("end_time") ?? "");
-  const assignedTo = String(formData.get("assigned_to") ?? "").trim() || null;
-  const notes = String(formData.get("notes") ?? "").trim() || null;
+  const contactId   = String(formData.get("contact_id")   ?? "").trim() || null;
+  const estimateId  = String(formData.get("estimate_id")  ?? "").trim() || null;
+  const jobType     = String(formData.get("job_type")     ?? "").trim() || null;
+  const address     = String(formData.get("address")      ?? "").trim() || null;
+  const startTime   = String(formData.get("start_time")   ?? "");
+  const endTime     = String(formData.get("end_time")     ?? "");
+  const assignedTo  = String(formData.get("assigned_to")  ?? "").trim() || null;
+  const notes       = String(formData.get("notes")        ?? "").trim() || null;
 
   if (!startTime || !endTime) {
     return { ok: false, error: "Start time and end time are required." };
@@ -1331,6 +1332,7 @@ export async function createCalendarAppointmentAction(
   const supabase = createServiceSupabase();
   const { error } = await supabase.from("appointments").insert({
     user_id: user.id,
+    estimate_id: estimateId,
     title,
     start_time: startIso,
     end_time: endIso,
