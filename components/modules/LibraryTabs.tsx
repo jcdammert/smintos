@@ -3,10 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ClientRow } from "@/components/modules/ClientRow";
-import { ImportContactsButton } from "@/components/modules/ImportContactsButton";
-import { ImportEstimatesButton } from "@/components/modules/ImportEstimatesButton";
-import { ImportInvoicesButton } from "@/components/modules/ImportInvoicesButton";
-import { ImportProductsButton } from "@/components/modules/ImportProductsButton";
 import { EstimateBadge, InvoiceBadge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/Button";
@@ -139,7 +135,6 @@ export function LibraryTabs({ initialTab, clients, estimates, invoices, products
             </span>
             <LinkButton href="/clients/new" size="sm">+ Add</LinkButton>
           </div>
-          {!q && <ImportContactsButton />}
           {filteredClients.length === 0 ? (
             <EmptyState title={q ? "No clients match" : "No clients yet"} subtitle={q ? "Try a different search." : "Add one manually, or pull from GoHighLevel."} />
           ) : (
@@ -158,7 +153,6 @@ export function LibraryTabs({ initialTab, clients, estimates, invoices, products
             </span>
             <LinkButton href="/estimates/new" size="sm">+ New</LinkButton>
           </div>
-          {!q && <ImportEstimatesButton />}
           {filteredEstimates.length === 0 ? (
             <EmptyState title={q ? "No estimates match" : "No estimates yet"} subtitle={q ? "Try a different search." : "Create your first estimate."} />
           ) : (
@@ -192,7 +186,6 @@ export function LibraryTabs({ initialTab, clients, estimates, invoices, products
             </span>
             <LinkButton href="/invoices/new" size="sm">+ New</LinkButton>
           </div>
-          {!q && <ImportInvoicesButton />}
           {filteredInvoices.length === 0 ? (
             <EmptyState title={q ? "No invoices match" : "No invoices yet"} subtitle={q ? "Try a different search." : "Create one or convert from an estimate."} />
           ) : (
@@ -225,7 +218,6 @@ export function LibraryTabs({ initialTab, clients, estimates, invoices, products
               {q ? `${filteredProducts.length} of ${products.length}` : `${products.length} total`}
             </span>
           </div>
-          {!q && <ImportProductsButton />}
           {filteredProducts.length === 0 ? (
             <EmptyState title={q ? "No products match" : "No products yet"} subtitle={q ? "Try a different search." : "Import products from GoHighLevel."} />
           ) : (

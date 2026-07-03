@@ -12,6 +12,7 @@ import {
   EstimatePipelineCard,
   InvoicePipelineCard,
 } from "@/components/modules/PipelineCard";
+import { SyncAllButton } from "@/components/modules/SyncAllButton";
 import type { AppointmentStatus } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -100,7 +101,10 @@ export default async function DashboardHome() {
         <StatPill label="Overdue" value={overdueInvoices.length} danger />
       </section>
 
-      {/* 3. Today's Jobs */}
+      {/* 3. Sync button */}
+      <SyncAllButton />
+
+      {/* 4. Today's Jobs */}
       <section>
         <SectionHeader
           title="Today's Jobs"

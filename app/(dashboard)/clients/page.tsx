@@ -2,7 +2,6 @@ import Link from "next/link";
 import { getCurrentUser } from "@/lib/session";
 import { getClients } from "@/lib/data";
 import { ClientRow } from "@/components/modules/ClientRow";
-import { ImportContactsButton } from "@/components/modules/ImportContactsButton";
 import { EmptyState } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/Button";
 
@@ -25,8 +24,6 @@ export default async function ClientsPage() {
           + Add
         </LinkButton>
       </header>
-
-      <ImportContactsButton />
 
       {clients.length > 0 ? (
         <div className="space-y-2">

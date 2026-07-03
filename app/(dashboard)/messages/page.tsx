@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/session";
 import { getMessageThreads } from "@/lib/data";
-import { ImportMessagesButton } from "@/components/modules/ImportMessagesButton";
 import { EmptyState } from "@/components/ui/Card";
 import { formatTime, formatDate } from "@/lib/format";
 import { getUserTimezone } from "@/lib/timezone";
@@ -27,8 +26,6 @@ export default async function MessagesPage() {
           SMS threads with your clients.
         </p>
       </header>
-
-      <ImportMessagesButton />
 
       {threads.length === 0 ? (
         <EmptyState

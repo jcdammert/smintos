@@ -2257,3 +2257,42 @@ export async function quickCreateClientAction(input: {
   const c = row as { id: string; name: string; ghl_contact_id: string | null; address: string | null };
   return { ok: true, client: { id: c.id, name: c.name, ghl_contact_id: c.ghl_contact_id, address: c.address } };
 }
+
+// ─── Sync everything from GHL at once ──────────────────────────────────────
+
+export async function syncAllGhlAction(): Promise<{
+  ok: boolean;
+  summary?: string;
+  error?: string;
+}> {
+  // Contacts must run first — estimates/invoices reference them by GHL contact id
+  const contacts = await importGhlContactsAction();
+  if (contacts.error) return { ok: false, error: `Contacts: ${contacts.error}` };
+
+  const [estimates, invoices, products, messages] = await Promise.all([
+    importGhlEstimatesAction(),
+    importGhlInvoicesAction(),
+    importGhlProductsAction(),
+    importGhlMessagesAction(),
+  ]);
+
+  const errors = [
+    estimates.error && `Estimates: ${estimates.error}`,
+    invoices.error  && `Invoices: ${invoices.error}`,
+    products.error  && `Products: ${products.error}`,
+    messages.error  && `Messages: ${messages.error}`,
+  ].filter(Boolean);
+
+  if (errors.length > 0) return { ok: false, error: errors.join(" · ") };
+
+  const summary = [
+    `${contacts.imported} contacts`,
+    `${estimates.imported} estimates`,
+    `${invoices.imported} invoices`,
+    `${products.imported} products`,
+    `${messages.imported} messages`,
+  ].join(" · ");
+
+  revalidatePath("/");
+  return { ok: true, summary };
+}
