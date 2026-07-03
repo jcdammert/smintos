@@ -17,6 +17,7 @@ import {
   sendInvoice,
   updateInvoice,
   createCalendarEvent,
+  updateCalendarEvent,
   listContacts,
   listInvoices as ghlListInvoices,
   listEstimates as ghlListEstimates,
@@ -1348,6 +1349,63 @@ export async function createCalendarAppointmentAction(
 
   if (error) return { ok: false, error: error.message };
 
+  revalidatePath("/calendar");
+  revalidatePath("/");
+  return { ok: true };
+}
+
+export async function updateAppointmentAction(
+  appointmentId: string,
+  formData: FormData,
+): Promise<{ ok: boolean; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+
+  let title       = String(formData.get("title")        ?? "").trim();
+  const contactName = String(formData.get("contact_name") ?? "").trim() || null;
+  const jobType     = String(formData.get("job_type")     ?? "").trim() || null;
+  const address     = String(formData.get("address")      ?? "").trim() || null;
+  const startTime   = String(formData.get("start_time")   ?? "");
+  const endTime     = String(formData.get("end_time")     ?? "");
+  const status      = String(formData.get("status")       ?? "unconfirmed");
+  const assignedTo  = String(formData.get("assigned_to")  ?? "").trim() || null;
+  const notes       = String(formData.get("notes")        ?? "").trim() || null;
+
+  if (!startTime || !endTime) return { ok: false, error: "Start and end times are required." };
+  if (!title) title = contactName || jobType || "Appointment";
+
+  const startIso = new Date(startTime).toISOString();
+  const endIso   = new Date(endTime).toISOString();
+
+  const supabase = createServiceSupabase();
+
+  const { data: existing } = await supabase
+    .from("appointments")
+    .select("ghl_event_id")
+    .eq("user_id", user.id)
+    .eq("id", appointmentId)
+    .maybeSingle();
+
+  if (!existing) return { ok: false, error: "Appointment not found." };
+
+  const { error } = await supabase
+    .from("appointments")
+    .update({ title, contact_name: contactName, job_type: jobType, address, start_time: startIso, end_time: endIso, status, assigned_to: assignedTo, notes })
+    .eq("user_id", user.id)
+    .eq("id", appointmentId);
+
+  if (error) return { ok: false, error: error.message };
+
+  if (hasGhlCreds(user) && existing.ghl_event_id) {
+    await updateCalendarEvent(user.ghl_location_id!, user.ghl_api_key!, existing.ghl_event_id, {
+      title: title || "Appointment",
+      startTime: startIso,
+      endTime: endIso,
+      notes: notes ?? undefined,
+    });
+  }
+
+  revalidatePath(`/appointments/${appointmentId}`);
   revalidatePath("/calendar");
   revalidatePath("/");
   return { ok: true };

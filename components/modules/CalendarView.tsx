@@ -520,11 +520,18 @@ function JobDetailSheet({ apt, onClose }: { apt: Appointment; onClose: () => voi
               <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${cfg.badge}`}>{cfg.label}</span>
               <h2 className="font-display text-xl font-bold text-text-primary">{apt.title}</h2>
             </div>
-            <Link href={`/appointments/${apt.id}`} onClick={close}
-              className="flex-shrink-0 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-semibold text-text-secondary"
-            >
-              Details →
-            </Link>
+            <div className="flex flex-shrink-0 items-center gap-2">
+              <Link href={`/appointments/${apt.id}/edit`} onClick={close}
+                className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-semibold text-text-secondary"
+              >
+                Edit
+              </Link>
+              <Link href={`/appointments/${apt.id}`} onClick={close}
+                className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-semibold text-text-secondary"
+              >
+                Details →
+              </Link>
+            </div>
           </div>
           <dl className="mb-5 space-y-3 text-sm">
             {apt.contact_name && <DetailRow label="Contact"     value={apt.contact_name} />}

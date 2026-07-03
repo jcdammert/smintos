@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/session";
 import { getAppointment, getLinkedRecordsForAppointment } from "@/lib/data";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { LinkButton } from "@/components/ui/Button";
 import { LinkedRecords } from "@/components/modules/LinkedRecords";
 import { AppointmentConvertButton } from "@/components/modules/AppointmentConvertButton";
 
@@ -68,7 +69,12 @@ export default async function AppointmentDetailPage({
             <p className="truncate text-xs text-text-secondary">{apt.contact_name}</p>
           )}
         </div>
-        <Badge tone={tone}>{STATUS_LABEL[apt.status] ?? apt.status}</Badge>
+        <div className="flex items-center gap-2">
+          <LinkButton href={`/appointments/${apt.id}/edit`} variant="outline" size="sm">
+            Edit
+          </LinkButton>
+          <Badge tone={tone}>{STATUS_LABEL[apt.status] ?? apt.status}</Badge>
+        </div>
       </header>
 
       <Card>

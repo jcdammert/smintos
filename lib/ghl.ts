@@ -375,6 +375,20 @@ export function createCalendarEvent(
   });
 }
 
+export function updateCalendarEvent(
+  locationId: string,
+  apiKey: string,
+  eventId: string,
+  data: { title?: string; startTime?: string; endTime?: string; notes?: string },
+): Promise<GhlResult<GhlCalendarEventResponse>> {
+  return ghlRequest<GhlCalendarEventResponse>({
+    method: "PUT",
+    apiKey,
+    path: `/calendars/events/${eventId}`,
+    body: { ...data, locationId },
+  });
+}
+
 export function deleteCalendarEvent(
   _locationId: string,
   apiKey: string,
