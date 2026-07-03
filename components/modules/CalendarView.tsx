@@ -528,11 +528,6 @@ function JobDetailSheet({ apt, onClose }: { apt: Appointment; onClose: () => voi
               >
                 Edit
               </Link>
-              <Link href={`/appointments/${apt.id}`} onClick={close}
-                className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-semibold text-text-secondary"
-              >
-                Details →
-              </Link>
             </div>
           </div>
           <dl className="mb-5 space-y-3 text-sm">
@@ -582,9 +577,7 @@ function JobDetailSheet({ apt, onClose }: { apt: Appointment; onClose: () => voi
             <SheetLink href="/clients"   label="View Contact"   icon="👤" />
             <SheetLink href="/estimates" label="View Estimates" icon="📋" />
             <SheetLink href="/invoices"  label="View Invoices"  icon="💰" />
-            {mapsHref
-              ? <SheetLink href={mapsHref} label="Get Directions" icon="🗺️" external />
-              : <SheetLink href={`/appointments/${apt.id}`} label="Full Details" icon="📝" onClick={close} />}
+            {mapsHref && <SheetLink href={mapsHref} label="Get Directions" icon="🗺️" external />}
             {apt.address && (
               <button
                 type="button"
