@@ -76,11 +76,12 @@ export function CalendarMapView({
   const markersRef   = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
   const [phase, setPhase] = useState<"loading" | "geocoding" | "ready" | "empty">("loading");
 
-  const aptsWithAddr = appointments.filter((a) => a.address?.trim());
+  const aptsWithAddr    = appointments.filter((a) =>  a.address?.trim());
+  const aptsWithoutAddr = appointments.filter((a) => !a.address?.trim());
 
   useEffect(() => {
     if (aptsWithAddr.length === 0) {
-      setPhase("empty");
+      setPhase(appointments.length > 0 ? "ready" : "empty");
       return;
     }
 
@@ -182,13 +183,35 @@ export function CalendarMapView({
           Pinning addresses…
         </div>
       )}
-      {phase === "empty" && (
+      {phase === "empty" && appointments.length === 0 && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-bg px-8 text-center">
           <span className="text-3xl">📍</span>
           <p className="font-semibold text-text-primary">No job addresses for this day</p>
           <p className="text-sm text-text-secondary">
             Add an address when creating an appointment and it will appear as a pin here.
           </p>
+        </div>
+      )}
+
+      {/* Appointments without an address — shown as a tappable strip */}
+      {aptsWithoutAddr.length > 0 && phase !== "loading" && (
+        <div className="absolute bottom-0 left-0 right-0 border-t border-line bg-white/95 backdrop-blur-sm">
+          <div className="flex gap-2 overflow-x-auto px-3 py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {aptsWithoutAddr.map((apt) => (
+              <button
+                key={apt.id}
+                type="button"
+                onClick={() => onSelectAppt(apt)}
+                className="flex min-w-[130px] flex-shrink-0 flex-col rounded-xl border border-line bg-bg px-3 py-2 text-left transition active:scale-[0.97]"
+              >
+                <span className="text-[10px] text-text-secondary">{fmtTime(apt.start_time)}</span>
+                <span className="max-w-[118px] truncate text-xs font-semibold text-text-primary">
+                  {apt.contact_name ?? apt.title}
+                </span>
+                <span className="mt-0.5 text-[10px] text-text-secondary">No address</span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
