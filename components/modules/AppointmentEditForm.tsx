@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { updateAppointmentAction } from "@/lib/actions";
 import { Input, Textarea } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { CrewMemberPicker } from "@/components/modules/CrewMemberPicker";
 import type { Appointment } from "@/types";
 
 function toLocalDatetime(iso: string) {
@@ -58,11 +59,6 @@ export function AppointmentEditForm({ apt }: { apt: Appointment }) {
         placeholder="Jane Smith"
       />
       <Input
-        id="job_type" name="job_type" label="Job type"
-        defaultValue={apt.job_type ?? ""}
-        placeholder="Auto tint, Residential…"
-      />
-      <Input
         id="title" name="title" label="Job title (optional)"
         defaultValue={apt.title}
         placeholder="Leave blank to auto-set from contact name"
@@ -99,11 +95,7 @@ export function AppointmentEditForm({ apt }: { apt: Appointment }) {
         </select>
       </label>
 
-      <Input
-        id="assigned_to" name="assigned_to" label="Assigned to"
-        defaultValue={apt.assigned_to ?? ""}
-        placeholder="Crew member name"
-      />
+      <CrewMemberPicker defaultValue={apt.assigned_to ?? ""} />
       <Textarea
         id="notes" name="notes" label="Notes"
         defaultValue={apt.notes ?? ""}

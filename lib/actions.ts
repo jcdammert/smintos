@@ -2169,6 +2169,31 @@ export async function fetchProductsForPickerAction(): Promise<
   return (data ?? []) as Array<{ id: string; name: string; unit_price: number }>;
 }
 
+/** Fetch the crew member name list for the current user. */
+export async function fetchCrewMembersAction(): Promise<string[]> {
+  const user = await getCurrentUser();
+  if (!user) return [];
+  const { data } = await createServiceSupabase()
+    .from("crew_members")
+    .select("name")
+    .eq("user_id", user.id)
+    .order("name");
+  return (data ?? []).map((r: { name: string }) => r.name);
+}
+
+/** Add a new crew member for the current user. */
+export async function addCrewMemberAction(name: string): Promise<{ ok: boolean }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false };
+  const trimmed = name.trim();
+  if (!trimmed) return { ok: false };
+  await createServiceSupabase()
+    .from("crew_members")
+    .insert({ user_id: user.id, name: trimmed });
+  revalidatePath("/calendar");
+  return { ok: true };
+}
+
 /** Fetch all clients (minimal fields) for the contact picker in the appointment form. */
 export async function fetchClientsForPickerAction(): Promise<
   Array<{ id: string; name: string; address: string | null; ghl_contact_id: string | null }>

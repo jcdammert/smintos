@@ -20,6 +20,7 @@ import {
   fetchClientsForPickerAction,
   quickCreateClientAction,
 } from "@/lib/actions";
+import { CrewMemberPicker } from "@/components/modules/CrewMemberPicker";
 import { setOptions, importLibrary } from "@googlemaps/js-api-loader";
 import { Input, Textarea } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -99,7 +100,7 @@ function JobBlock({ apt, onClick }: { apt: Appointment; onClick: () => void }) {
       style={{ top, height, minHeight:24 }}
     >
       <p className={`truncate text-xs font-semibold leading-tight ${cfg.text}`}>{apt.contact_name||apt.title}</p>
-      {height>=40 && <p className={`truncate text-[10px] leading-tight ${cfg.text} opacity-70`}>{apt.job_type?`${apt.job_type} · `:""}{fmtTime(apt.start_time)}</p>}
+      {height>=40 && <p className={`truncate text-[10px] leading-tight ${cfg.text} opacity-70`}>{fmtTime(apt.start_time)}</p>}
     </button>
   );
 }
@@ -534,9 +535,8 @@ function JobDetailSheet({ apt, onClose }: { apt: Appointment; onClose: () => voi
             </div>
           </div>
           <dl className="mb-5 space-y-3 text-sm">
-            {apt.contact_name && <DetailRow label="Contact"     value={apt.contact_name} />}
-            {apt.job_type     && <DetailRow label="Job type"    value={apt.job_type} />}
-            {apt.address      && <DetailRow label="Address"     value={apt.address} />}
+            {apt.contact_name && <DetailRow label="Contact"  value={apt.contact_name} />}
+            {apt.address      && <DetailRow label="Address"  value={apt.address} />}
             <DetailRow label="Start"  value={new Date(apt.start_time).toLocaleString([],{dateStyle:"medium",timeStyle:"short"})} />
             <DetailRow label="End"    value={new Date(apt.end_time).toLocaleString([],{dateStyle:"medium",timeStyle:"short"})} />
             {apt.assigned_to && <DetailRow label="Assigned to" value={apt.assigned_to} />}
@@ -703,9 +703,6 @@ function CreateSheet({
             {/* Estimate link */}
             <input type="hidden" name="estimate_id" value={defaultEstimateId ?? ""} />
 
-            <Input id="job_type" name="job_type" label="Job type" placeholder="Auto tint, Residential…"
-              defaultValue={defaultJobType} />
-
             {/* Job title — optional, picks from estimates / invoices / products */}
             <JobTitlePicker
               contactId={contactGhlId ?? undefined}
@@ -726,7 +723,7 @@ function CreateSheet({
                 value={endVal}   onChange={(e) => setEndVal(e.target.value)}          required />
             </div>
 
-            <Input id="assigned_to" name="assigned_to" label="Assigned to" placeholder="Crew member name" />
+            <CrewMemberPicker />
             <Textarea id="notes" name="notes" label="Notes" placeholder="Optional job notes…" />
 
             {error && <p className="rounded-card bg-red-50 px-4 py-2 text-sm text-red-700">{error}</p>}

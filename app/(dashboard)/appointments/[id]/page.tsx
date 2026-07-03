@@ -103,12 +103,6 @@ export default async function AppointmentDetailPage({
               <dd className="font-medium text-text-primary">{apt.contact_name}</dd>
             </div>
           )}
-          {apt.job_type && (
-            <div className="flex justify-between">
-              <dt className="text-text-secondary">Job type</dt>
-              <dd className="font-medium text-text-primary">{apt.job_type}</dd>
-            </div>
-          )}
           {apt.address && (
             <div className="flex justify-between gap-4">
               <dt className="flex-shrink-0 text-text-secondary">Address</dt>

@@ -130,7 +130,6 @@ export default async function DashboardHome() {
                     <p className="truncate font-semibold text-text-primary">{job.title}</p>
                     <p className="truncate text-sm text-text-secondary">
                       {job.contact_name ?? "—"}
-                      {job.job_type ? ` · ${job.job_type}` : ""}
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1">
