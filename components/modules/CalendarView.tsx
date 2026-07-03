@@ -492,6 +492,7 @@ const BACKDROP_CLS = "fixed inset-0 z-50 bg-black/40 transition-opacity duration
 function JobDetailSheet({ apt, onClose }: { apt: Appointment; onClose: () => void }) {
   const [visible, setVisible] = useState(false);
   const [invPending, startInv] = useTransition();
+  const [copiedAddr, setCopiedAddr] = useState(false);
   const [links, setLinks] = useState<{
     estimate: { id: string; estimate_number: string; name: string | null; total: number } | null;
     invoice: { id: string; invoice_number: string; name: string | null; total: number; status: string } | null;
@@ -578,12 +579,26 @@ function JobDetailSheet({ apt, onClose }: { apt: Appointment; onClose: () => voi
           )}
 
           <div className="grid grid-cols-2 gap-2">
-            <SheetLink href="/clients"       label="View Contact"   icon="👤" />
-            <SheetLink href="/estimates"     label="View Estimates" icon="📋" />
-            <SheetLink href="/invoices"      label="View Invoices"  icon="💰" />
+            <SheetLink href="/clients"   label="View Contact"   icon="👤" />
+            <SheetLink href="/estimates" label="View Estimates" icon="📋" />
+            <SheetLink href="/invoices"  label="View Invoices"  icon="💰" />
             {mapsHref
               ? <SheetLink href={mapsHref} label="Get Directions" icon="🗺️" external />
               : <SheetLink href={`/appointments/${apt.id}`} label="Full Details" icon="📝" onClick={close} />}
+            {apt.address && (
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(apt.address!);
+                  setCopiedAddr(true);
+                  setTimeout(() => setCopiedAddr(false), 2000);
+                }}
+                className="col-span-2 flex items-center gap-2.5 rounded-card border border-line bg-white px-3 py-3 text-sm font-semibold text-text-primary transition active:scale-[0.98]"
+              >
+                <span className="text-base">{copiedAddr ? "✓" : "📋"}</span>
+                {copiedAddr ? "Address copied!" : "Copy Address"}
+              </button>
+            )}
           </div>
         </div>
       </div>
