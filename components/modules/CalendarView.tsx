@@ -227,10 +227,23 @@ function PickerGroup({ title, items, onPick }: { title: string; items: WorkItem[
 
 let mapsOptionsSet = false;
 
-function AddressAutocompleteInput({ defaultValue }: { defaultValue?: string }) {
+function AddressAutocompleteInput({
+  defaultValue,
+  savedAddress,
+  savedLabel,
+}: {
+  defaultValue?: string;
+  savedAddress?: string;
+  savedLabel?: string;
+}) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [val, setVal] = useState(defaultValue ?? "");
   const initDone = useRef(false);
+
+  function fill(addr: string) {
+    setVal(addr);
+    if (inputRef.current) inputRef.current.value = addr;
+  }
 
   function initAutocomplete() {
     if (initDone.current || !inputRef.current) return;
@@ -248,29 +261,48 @@ function AddressAutocompleteInput({ defaultValue }: { defaultValue?: string }) {
         fields: ["formatted_address"],
       });
       ac.addListener("place_changed", () => {
-        const place = ac.getPlace();
-        const addr = place.formatted_address ?? "";
-        setVal(addr);
-        if (inputRef.current) inputRef.current.value = addr;
+        const addr = ac.getPlace().formatted_address ?? "";
+        fill(addr);
       });
     });
   }
 
   return (
-    <label className="block">
-      <span className="mb-1.5 block text-sm font-medium text-text-primary">Job address</span>
+    <div className="space-y-2">
+      <span className="block text-sm font-medium text-text-primary">Job address</span>
+
+      {/* Saved address suggestion — shown when client has an address and field is empty */}
+      {savedAddress && !val && (
+        <button
+          type="button"
+          onClick={() => fill(savedAddress)}
+          className="flex w-full items-center gap-2.5 rounded-card border border-mint/40 bg-mint/8 px-3 py-2.5 text-left transition active:scale-[0.99]"
+        >
+          <span className="text-base">📍</span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-mint-dark">
+              {savedLabel ?? "Saved address"}
+            </p>
+            <p className="truncate text-sm font-medium text-text-primary">{savedAddress}</p>
+          </div>
+          <span className="flex-shrink-0 rounded-full bg-mint px-2.5 py-1 text-xs font-bold text-ink">
+            Use
+          </span>
+        </button>
+      )}
+
       <input
         ref={inputRef}
         name="address"
         value={val}
         onChange={(e) => setVal(e.target.value)}
         onFocus={initAutocomplete}
-        placeholder="1445 Main St, Miami, FL"
+        placeholder="Search for a different address…"
         autoComplete="off"
         className="min-h-[48px] w-full rounded-card border border-line bg-white px-4 text-base text-text-primary outline-none transition focus:border-mint focus:ring-2 focus:ring-mint/30 placeholder:text-text-secondary"
       />
-      <span className="mt-1 block text-xs text-text-secondary">Used to pin this job on the map view</span>
-    </label>
+      <span className="block text-xs text-text-secondary">Used to pin this job on the map view</span>
+    </div>
   );
 }
 
@@ -493,7 +525,10 @@ function CreateSheet({
               onChange={setTitle}
             />
 
-            <AddressAutocompleteInput defaultValue={defaultAddress} />
+            <AddressAutocompleteInput
+              savedAddress={defaultAddress}
+              savedLabel={defaultContactName ? `${defaultContactName}'s address` : "Client's address"}
+            />
 
             <div className="grid grid-cols-2 gap-3">
               <Input id="start_time" name="start_time" type="datetime-local" label="Start"
