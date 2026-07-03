@@ -17,6 +17,8 @@ import {
   fetchContactWorkAction,
   fetchProductsForPickerAction,
   fetchAppointmentLinksAction,
+  fetchClientsForPickerAction,
+  quickCreateClientAction,
 } from "@/lib/actions";
 import { setOptions, importLibrary } from "@googlemaps/js-api-loader";
 import { Input, Textarea } from "@/components/ui/Input";
@@ -219,6 +221,180 @@ function PickerGroup({ title, items, onPick }: { title: string; items: WorkItem[
           <span className="ml-2 flex-shrink-0 text-xs text-text-secondary">{item.sub}</span>
         </button>
       ))}
+    </div>
+  );
+}
+
+// ─── Contact picker ─────────────────────────────────────────────────────────
+
+type ClientOption = {
+  id: string;
+  name: string;
+  address: string | null;
+  ghl_contact_id: string | null;
+};
+
+function QuickNewContactForm({
+  defaultName,
+  onCreated,
+  onCancel,
+}: {
+  defaultName?: string;
+  onCreated: (c: ClientOption) => void;
+  onCancel: () => void;
+}) {
+  const [pending, start] = useTransition();
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const parts = (defaultName ?? "").trim().split(/\s+/);
+  const defaultFirst = parts[0] ?? "";
+  const defaultLast  = parts.slice(1).join(" ");
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const firstName = String(fd.get("qc_first") ?? "").trim();
+    const lastName  = String(fd.get("qc_last")  ?? "").trim();
+    const phone     = String(fd.get("qc_phone") ?? "").trim() || undefined;
+    const email     = String(fd.get("qc_email") ?? "").trim() || undefined;
+    start(async () => {
+      const res = await quickCreateClientAction({ firstName, lastName, phone, email });
+      if (!res.ok) { setFormError(res.error); return; }
+      onCreated(res.client);
+    });
+  }
+
+  return (
+    <div className="border-t border-line p-4 space-y-3">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-text-secondary">New contact</p>
+      <form onSubmit={handleSubmit} className="space-y-2.5">
+        <div className="grid grid-cols-2 gap-2">
+          <input name="qc_first" defaultValue={defaultFirst} placeholder="First name" required autoFocus
+            className="min-h-[40px] w-full rounded-lg border border-line px-3 text-sm text-text-primary outline-none focus:border-mint focus:ring-2 focus:ring-mint/30" />
+          <input name="qc_last" defaultValue={defaultLast} placeholder="Last name"
+            className="min-h-[40px] w-full rounded-lg border border-line px-3 text-sm text-text-primary outline-none focus:border-mint focus:ring-2 focus:ring-mint/30" />
+        </div>
+        <input name="qc_phone" type="tel" placeholder="Phone (optional)"
+          className="min-h-[40px] w-full rounded-lg border border-line px-3 text-sm text-text-primary outline-none focus:border-mint focus:ring-2 focus:ring-mint/30" />
+        <input name="qc_email" type="email" placeholder="Email (optional)"
+          className="min-h-[40px] w-full rounded-lg border border-line px-3 text-sm text-text-primary outline-none focus:border-mint focus:ring-2 focus:ring-mint/30" />
+        {formError && <p className="text-xs text-red-600">{formError}</p>}
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" onClick={onCancel}
+            className="min-h-[40px] rounded-lg border border-line text-sm font-semibold text-text-secondary transition active:scale-[0.98]">
+            Cancel
+          </button>
+          <button type="submit" disabled={pending}
+            className="min-h-[40px] rounded-lg bg-mint text-sm font-semibold text-ink transition active:scale-[0.98] disabled:opacity-50">
+            {pending ? "Saving…" : "Create"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function ContactPicker({
+  defaultName,
+  defaultGhlContactId,
+  onChange,
+}: {
+  defaultName?: string;
+  defaultGhlContactId?: string;
+  onChange: (c: { name: string; ghlContactId: string | null; address: string | null }) => void;
+}) {
+  const [inputVal, setInputVal]         = useState(defaultName ?? "");
+  const [ghlId, setGhlId]               = useState<string | null>(defaultGhlContactId ?? null);
+  const [open, setOpen]                 = useState(false);
+  const [clients, setClients]           = useState<ClientOption[]>([]);
+  const [loading, setLoading]           = useState(true);
+  const [showNewForm, setShowNewForm]   = useState(false);
+
+  useEffect(() => {
+    fetchClientsForPickerAction().then((data) => {
+      setClients(data);
+      setLoading(false);
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const filtered = inputVal.trim()
+    ? clients.filter((c) => c.name.toLowerCase().includes(inputVal.toLowerCase()))
+    : clients;
+
+  function pick(c: ClientOption) {
+    setInputVal(c.name);
+    setGhlId(c.ghl_contact_id);
+    onChange({ name: c.name, ghlContactId: c.ghl_contact_id, address: c.address });
+    setOpen(false);
+    setShowNewForm(false);
+  }
+
+  function closeDropdown() { setOpen(false); setShowNewForm(false); }
+
+  return (
+    <div className="relative">
+      <label className="block">
+        <span className="mb-1.5 block text-sm font-medium text-text-primary">Contact name</span>
+        <input
+          name="contact_name"
+          value={inputVal}
+          onChange={(e) => {
+            setInputVal(e.target.value);
+            setGhlId(null);
+            onChange({ name: e.target.value, ghlContactId: null, address: null });
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          placeholder="Search contacts…"
+          autoComplete="off"
+          className="min-h-[48px] w-full rounded-card border border-line bg-white px-4 text-base text-text-primary outline-none transition focus:border-mint focus:ring-2 focus:ring-mint/30 placeholder:text-text-secondary"
+        />
+      </label>
+      {/* Hidden field — consumed by createCalendarAppointmentAction */}
+      <input type="hidden" name="contact_id" value={ghlId ?? ""} />
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-[70]" onClick={closeDropdown} />
+          <div className="absolute left-0 right-0 top-full z-[80] mt-1 max-h-72 overflow-y-auto rounded-card border border-line bg-white shadow-xl">
+            {loading ? (
+              <p className="px-4 py-3 text-sm text-text-secondary">Loading…</p>
+            ) : (
+              <>
+                {filtered.length === 0 && (
+                  <p className="px-4 py-3 text-sm text-text-secondary">No contacts found.</p>
+                )}
+                {filtered.map((c) => (
+                  <button key={c.id} type="button" onClick={() => pick(c)}
+                    className="flex w-full flex-col px-4 py-2.5 text-left transition active:bg-bg"
+                  >
+                    <span className="text-sm font-medium text-text-primary">{c.name}</span>
+                    {c.address && (
+                      <span className="truncate text-xs text-text-secondary">{c.address}</span>
+                    )}
+                  </button>
+                ))}
+                {!showNewForm ? (
+                  <button type="button" onClick={() => setShowNewForm(true)}
+                    className="flex w-full items-center gap-2 border-t border-line px-4 py-3 text-sm font-semibold text-mint-dark transition active:bg-mint/5"
+                  >
+                    <span className="text-lg font-bold leading-none">+</span> New contact
+                  </button>
+                ) : (
+                  <QuickNewContactForm
+                    defaultName={inputVal}
+                    onCreated={(c) => {
+                      setClients((prev) => [c, ...prev]);
+                      pick(c);
+                    }}
+                    onCancel={() => setShowNewForm(false)}
+                  />
+                )}
+              </>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -452,6 +628,8 @@ function CreateSheet({
   const [error, setError] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [contactName, setContactName] = useState(defaultContactName ?? "");
+  const [contactGhlId, setContactGhlId] = useState<string | null>(defaultContactId ?? null);
+  const [savedAddress, setSavedAddress] = useState<string | undefined>(defaultAddress);
 
   const pad = (n: number) => String(n).padStart(2, "0");
   const dateStr = `${defaultDate.getFullYear()}-${pad(defaultDate.getMonth()+1)}-${pad(defaultDate.getDate())}`;
@@ -498,20 +676,18 @@ function CreateSheet({
 
         <div className="flex-1 overflow-y-auto px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
           <form action={handleSubmit} className="space-y-4 pt-4">
-            {/* Contact name — controlled so we can pass it to the title picker */}
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-medium text-text-primary">Contact name</span>
-              <input
-                name="contact_name"
-                value={contactName}
-                onChange={(e) => setContactName(e.target.value)}
-                placeholder="Jane Smith"
-                className="min-h-[48px] w-full rounded-card border border-line bg-white px-4 text-base text-text-primary outline-none transition focus:border-mint focus:ring-2 focus:ring-mint/30 placeholder:text-text-secondary"
-              />
-            </label>
+            {/* Contact picker — selects existing client or creates a new one inline */}
+            <ContactPicker
+              defaultName={defaultContactName}
+              defaultGhlContactId={defaultContactId}
+              onChange={(c) => {
+                setContactName(c.name);
+                setContactGhlId(c.ghlContactId);
+                if (c.address) setSavedAddress(c.address);
+              }}
+            />
 
-            {/* Hidden fields */}
-            <input type="hidden" name="contact_id"  value={defaultContactId  ?? ""} />
+            {/* Estimate link */}
             <input type="hidden" name="estimate_id" value={defaultEstimateId ?? ""} />
 
             <Input id="job_type" name="job_type" label="Job type" placeholder="Auto tint, Residential…"
@@ -519,15 +695,15 @@ function CreateSheet({
 
             {/* Job title — optional, picks from estimates / invoices / products */}
             <JobTitlePicker
-              contactId={defaultContactId}
+              contactId={contactGhlId ?? undefined}
               contactName={contactName || defaultContactName}
               value={title}
               onChange={setTitle}
             />
 
             <AddressAutocompleteInput
-              savedAddress={defaultAddress}
-              savedLabel={defaultContactName ? `${defaultContactName}'s address` : "Client's address"}
+              savedAddress={savedAddress}
+              savedLabel={contactName ? `${contactName}'s address` : "Client's address"}
             />
 
             <div className="grid grid-cols-2 gap-3">

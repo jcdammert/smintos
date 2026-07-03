@@ -2081,3 +2081,67 @@ export async function fetchProductsForPickerAction(): Promise<
     .order("name");
   return (data ?? []) as Array<{ id: string; name: string; unit_price: number }>;
 }
+
+/** Fetch all clients (minimal fields) for the contact picker in the appointment form. */
+export async function fetchClientsForPickerAction(): Promise<
+  Array<{ id: string; name: string; address: string | null; ghl_contact_id: string | null }>
+> {
+  const user = await getCurrentUser();
+  if (!user) return [];
+  const { data } = await createServiceSupabase()
+    .from("clients")
+    .select("id, name, address, ghl_contact_id")
+    .eq("user_id", user.id)
+    .order("name");
+  return (data ?? []) as Array<{ id: string; name: string; address: string | null; ghl_contact_id: string | null }>;
+}
+
+/**
+ * Create a new client without redirecting — used by the inline "New contact"
+ * form inside the appointment create sheet. Returns the created client on success.
+ */
+export async function quickCreateClientAction(input: {
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  email?: string;
+}): Promise<
+  | { ok: true; client: { id: string; name: string; ghl_contact_id: string | null; address: string | null } }
+  | { ok: false; error: string }
+> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+
+  const firstName = toTitleCase(input.firstName.trim());
+  const lastName  = toTitleCase(input.lastName.trim());
+  const name = [firstName, lastName].filter(Boolean).join(" ");
+  if (!name) return { ok: false, error: "First name is required." };
+
+  const phone = input.phone?.trim() || null;
+  const email = input.email?.trim() || null;
+
+  let ghlContactId: string | null = null;
+  if (hasGhlCreds(user)) {
+    const res = await createContact(user.ghl_location_id, user.ghl_api_key, {
+      name,
+      firstName: firstName || undefined,
+      phone: phone ?? undefined,
+      email: email ?? undefined,
+    });
+    if (res.ok && res.data?.contact?.id) ghlContactId = res.data.contact.id;
+  }
+
+  const supabase = createServiceSupabase();
+  const { data: row, error } = await supabase
+    .from("clients")
+    .insert({ user_id: user.id, ghl_contact_id: ghlContactId, name, phone, email })
+    .select("id, name, ghl_contact_id, address")
+    .maybeSingle();
+
+  if (error || !row) return { ok: false, error: error?.message ?? "Failed to create contact." };
+
+  revalidatePath("/clients");
+
+  const c = row as { id: string; name: string; ghl_contact_id: string | null; address: string | null };
+  return { ok: true, client: { id: c.id, name: c.name, ghl_contact_id: c.ghl_contact_id, address: c.address } };
+}
