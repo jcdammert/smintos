@@ -42,14 +42,14 @@ const HOURS = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_
 
 const STATUS_CFG: Record<
   AppointmentStatus,
-  { bg: string; border: string; text: string; badge: string; label: string }
+  { bg: string; border: string; text: string; badge: string; label: string; bar: string }
 > = {
-  confirmed:   { bg: "bg-mint/10",   border: "border-l-mint-dark", text: "text-mint-dark",  badge: "bg-mint/20 text-mint-dark",    label: "Confirmed"   },
-  showed:      { bg: "bg-blue-50",   border: "border-l-blue-500",  text: "text-blue-700",   badge: "bg-blue-100 text-blue-700",    label: "Showed"      },
-  cancelled:   { bg: "bg-red-50",    border: "border-l-red-500",   text: "text-red-700",    badge: "bg-red-100 text-red-700",      label: "Cancelled"   },
-  no_show:     { bg: "bg-orange-50", border: "border-l-orange-500",text: "text-orange-700", badge: "bg-orange-100 text-orange-700",label: "No Show"     },
-  unconfirmed: { bg: "bg-gray-50",   border: "border-l-gray-400",  text: "text-gray-600",   badge: "bg-gray-100 text-gray-600",    label: "Unconfirmed" },
-  invalid:     { bg: "bg-gray-50",   border: "border-l-gray-400",  text: "text-gray-600",   badge: "bg-gray-100 text-gray-600",    label: "Invalid"     },
+  confirmed:   { bg: "bg-mint/10",   border: "border-l-mint-dark", text: "text-mint-dark",  badge: "bg-mint/20 text-mint-dark",    label: "Confirmed",   bar: "bg-mint-dark"   },
+  showed:      { bg: "bg-blue-50",   border: "border-l-blue-500",  text: "text-blue-700",   badge: "bg-blue-100 text-blue-700",    label: "Showed",      bar: "bg-blue-500"    },
+  cancelled:   { bg: "bg-red-50",    border: "border-l-red-500",   text: "text-red-700",    badge: "bg-red-100 text-red-700",      label: "Cancelled",   bar: "bg-red-500"     },
+  no_show:     { bg: "bg-orange-50", border: "border-l-orange-500",text: "text-orange-700", badge: "bg-orange-100 text-orange-700",label: "No Show",     bar: "bg-orange-500"  },
+  unconfirmed: { bg: "bg-gray-50",   border: "border-l-gray-400",  text: "text-gray-600",   badge: "bg-gray-100 text-gray-600",    label: "Unconfirmed", bar: "bg-gray-400"    },
+  invalid:     { bg: "bg-gray-50",   border: "border-l-gray-400",  text: "text-gray-600",   badge: "bg-gray-100 text-gray-600",    label: "Invalid",     bar: "bg-gray-400"    },
 };
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -109,6 +109,43 @@ function DayColumn({ day, apts, onSelect }: { day: Date; apts: Appointment[]; on
     <div className="relative flex-1 min-w-[72px] border-r border-line/40">
       {HOURS.slice(0,-1).map((h) => <HourLine key={h} hour={h} />)}
       {apts.map((a) => <JobBlock key={a.id} apt={a} onClick={()=>onSelect(a)} />)}
+    </div>
+  );
+}
+
+function ListView({ apts, onSelect }: { apts: Appointment[]; onSelect: (a: Appointment) => void }) {
+  const sorted = [...apts].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+  if (sorted.length === 0) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-1 px-8 text-center">
+        <p className="font-semibold text-text-primary">No jobs this day</p>
+        <p className="text-sm text-text-secondary">Tap + to add an appointment</p>
+      </div>
+    );
+  }
+  return (
+    <div className="flex-1 overflow-y-auto bg-bg px-4 py-4 space-y-3">
+      {sorted.map((apt) => {
+        const cfg = STATUS_CFG[apt.status] ?? STATUS_CFG.unconfirmed;
+        const timeRange = `${fmtTime(apt.start_time)} – ${fmtTime(apt.end_time)}`;
+        return (
+          <button key={apt.id} type="button" onClick={() => onSelect(apt)}
+            className="flex w-full items-stretch gap-0 rounded-xl border border-line bg-white text-left shadow-sm transition active:scale-[0.99]"
+          >
+            <div className={`w-1.5 flex-shrink-0 rounded-l-xl ${cfg.bar}`} />
+            <div className="min-w-0 flex-1 px-4 py-3.5">
+              <p className="font-bold text-text-primary">{apt.title}</p>
+              {apt.contact_name && (
+                <p className="mt-0.5 text-sm text-text-secondary">{apt.contact_name}</p>
+              )}
+              <p className="mt-0.5 text-sm text-text-secondary">{timeRange}</p>
+              {apt.address && (
+                <p className="mt-0.5 truncate text-sm text-text-secondary">{apt.address}</p>
+              )}
+            </div>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -748,7 +785,7 @@ function CreateSheet({
 
 // ─── Main CalendarView ──────────────────────────────────────────────────────
 
-type ViewMode = "day" | "week" | "map";
+type ViewMode = "day" | "list" | "map";
 
 export function CalendarView({
   initialAppointments,
@@ -773,8 +810,7 @@ export function CalendarView({
   }>({});
   const [, startFetch] = useTransition();
 
-  const headerRef = useRef<HTMLDivElement>(null);
-  const bodyRef   = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const jobId = searchParams.get("job");
@@ -801,36 +837,24 @@ export function CalendarView({
   }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchRange = useCallback(
-    (base: Date, mode: ViewMode = viewMode) => {
-      let from: string, to: string;
-      if (mode === "week") {
-        const ws = getWeekStart(base);
-        from = ws.toISOString();
-        to   = addDays(ws, 7).toISOString();
-      } else {
-        from = startOfDay(base).toISOString();
-        to   = addDays(startOfDay(base), 1).toISOString();
-      }
+    (base: Date) => {
+      const from = startOfDay(base).toISOString();
+      const to   = addDays(startOfDay(base), 1).toISOString();
       startFetch(async () => {
         const data = await fetchCalendarRangeAction(from, to);
         setAppointments(data);
       });
     },
-    [viewMode],
+    [],
   );
 
   function navigate(dir: -1 | 1) {
-    const next = viewMode === "week" ? addDays(currentDate, dir*7) : addDays(currentDate, dir);
+    const next = addDays(currentDate, dir);
     setCurrentDate(next);
     fetchRange(next);
   }
-  function switchView(v: ViewMode) { setViewMode(v); fetchRange(currentDate, v); }
-  function syncHeaderScroll() {
-    if (headerRef.current && bodyRef.current) headerRef.current.scrollLeft = bodyRef.current.scrollLeft;
-  }
+  function switchView(v: ViewMode) { setViewMode(v); }
 
-  const weekStart = getWeekStart(currentDate);
-  const weekDays  = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const todayDate = startOfDay(new Date(today));
   const dayApts   = getApptsForDay(appointments, currentDate);
 
@@ -841,58 +865,33 @@ export function CalendarView({
         <div className="flex items-center gap-1">
           <button type="button" onClick={()=>navigate(-1)} className="flex h-9 w-9 items-center justify-center rounded-full text-text-secondary active:bg-black/5">‹</button>
           <span className="text-sm font-semibold text-text-primary">
-            {viewMode==="week"
-              ? `${weekStart.toLocaleDateString([],{month:"short",day:"numeric"})} – ${addDays(weekStart,6).toLocaleDateString([],{month:"short",day:"numeric"})}`
-              : fmtDateHeader(currentDate)}
+            {fmtDateHeader(currentDate)}
           </span>
           <button type="button" onClick={()=>navigate(1)} className="flex h-9 w-9 items-center justify-center rounded-full text-text-secondary active:bg-black/5">›</button>
         </div>
         <div className="flex items-center gap-0.5 rounded-full bg-bg p-0.5">
-          {(["day","week","map"] as const).map((v) => (
+          {(["day","list","map"] as const).map((v) => (
             <button key={v} type="button" onClick={()=>switchView(v)}
               className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${viewMode===v?"bg-white text-text-primary shadow-sm":"text-text-secondary"}`}
             >
-              {v==="day"?"Day":v==="week"?"Week":"Map"}
+              {v==="day"?"Day":v==="list"?"List":"Map"}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Week day headers */}
-      {viewMode==="week" && (
-        <div ref={headerRef} className="flex flex-shrink-0 overflow-x-hidden border-b border-line bg-white">
-          <div className="w-14 flex-shrink-0" />
-          {weekDays.map((day) => {
-            const isToday    = isSameDay(day, todayDate);
-            const isSelected = isSameDay(day, currentDate);
-            return (
-              <button key={day.toISOString()} type="button" onClick={()=>setCurrentDate(startOfDay(day))} className="flex flex-1 min-w-[72px] flex-col items-center py-2">
-                <span className="text-[10px] text-text-secondary">{day.toLocaleDateString([],{weekday:"short"})}</span>
-                <span className={`mt-0.5 flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold ${isToday?"bg-mint text-ink":isSelected?"bg-bg text-text-primary":"text-text-primary"}`}>
-                  {day.getDate()}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
       {/* Body */}
-      {viewMode==="map" ? (
+      {viewMode === "map" ? (
         <CalendarMapView appointments={dayApts} onSelectAppt={setSelectedAppt} />
+      ) : viewMode === "list" ? (
+        <ListView apts={dayApts} onSelect={setSelectedAppt} />
       ) : (
-        <div ref={bodyRef} className="flex-1 overflow-auto" onScroll={viewMode==="week"?syncHeaderScroll:undefined}>
+        <div ref={bodyRef} className="flex-1 overflow-auto">
           <div className="flex" style={{ height:TOTAL_HEIGHT }}>
             <div className="relative w-14 flex-shrink-0 sticky left-0 z-10 bg-white border-r border-line/40">
               {HOURS.map((h) => <TimeLabel key={h} hour={h} />)}
             </div>
-            {viewMode==="day" ? (
-              <DayColumn day={currentDate} apts={dayApts} onSelect={setSelectedAppt} />
-            ) : (
-              weekDays.map((day) => (
-                <DayColumn key={day.toISOString()} day={day} apts={getApptsForDay(appointments,day)} onSelect={setSelectedAppt} />
-              ))
-            )}
+            <DayColumn day={currentDate} apts={dayApts} onSelect={setSelectedAppt} />
           </div>
         </div>
       )}
