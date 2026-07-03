@@ -1354,6 +1354,35 @@ export async function createCalendarAppointmentAction(
   return { ok: true };
 }
 
+export async function deleteAppointmentAction(appointmentId: string) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const supabase = createServiceSupabase();
+
+  const { data: apt } = await supabase
+    .from("appointments")
+    .select("ghl_event_id")
+    .eq("user_id", user.id)
+    .eq("id", appointmentId)
+    .maybeSingle();
+
+  await supabase
+    .from("appointments")
+    .delete()
+    .eq("user_id", user.id)
+    .eq("id", appointmentId);
+
+  if (hasGhlCreds(user) && apt?.ghl_event_id) {
+    const { deleteCalendarEvent } = await import("@/lib/ghl");
+    await deleteCalendarEvent(user.ghl_location_id!, user.ghl_api_key!, apt.ghl_event_id);
+  }
+
+  revalidatePath("/calendar");
+  revalidatePath("/");
+  redirect("/calendar");
+}
+
 export async function updateAppointmentAction(
   appointmentId: string,
   formData: FormData,

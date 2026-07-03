@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { getAppointment } from "@/lib/data";
 import { AppointmentEditForm } from "@/components/modules/AppointmentEditForm";
+import { DeleteAppointmentButton } from "@/components/modules/DeleteButton";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,7 @@ export default async function EditAppointmentPage({
       </header>
 
       <AppointmentEditForm apt={apt} />
+      <DeleteAppointmentButton appointmentId={apt.id} />
     </div>
   );
 }
