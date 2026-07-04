@@ -203,52 +203,74 @@ export function EstimateForm({
         </button>
       </div>
 
-      {/* Discount */}
-      <div className="rounded-card border border-line bg-white p-3 space-y-2">
-        <p className="text-sm font-medium text-text-primary">Discount (optional)</p>
-        <div className="flex gap-2">
-          <select
-            value={discount.type}
-            onChange={(e) => setDiscount({ ...discount, type: e.target.value as "fixed" | "percent" })}
-            className="min-h-[44px] rounded-lg border border-line bg-white px-3 text-sm outline-none focus:border-mint"
-          >
-            <option value="fixed">$ Fixed</option>
-            <option value="percent">% Percent</option>
-          </select>
-          <input
-            type="number" min={0} step={discount.type === "percent" ? 1 : 0.01}
-            max={discount.type === "percent" ? 100 : undefined}
-            value={discount.value || ""}
-            onChange={(e) => setDiscount({ ...discount, value: Number(e.target.value) || 0 })}
-            placeholder={discount.type === "percent" ? "e.g. 10" : "e.g. 50.00"}
-            className="min-h-[44px] flex-1 rounded-lg border border-line bg-white px-3 text-base outline-none focus:border-mint"
-          />
+      {/* Totals block with inline discount + tax toggles */}
+      <div className="rounded-card border border-line bg-white divide-y divide-line">
+        {/* Subtotal row */}
+        <div className="flex items-center justify-between px-4 py-3">
+          <span className="text-sm text-text-secondary">Subtotal</span>
+          <span className="text-sm font-medium text-text-primary">{formatCurrency(subtotal)}</span>
         </div>
-        {discountAmount > 0 && (
-          <p className="text-right text-sm text-danger">
-            − {formatCurrency(discountAmount)}{discount.type === "percent" ? ` (${discount.value}%)` : ""}
-          </p>
-        )}
-      </div>
 
-      {/* Tax */}
-      <div className="rounded-card border border-line bg-white p-3 space-y-2">
-        <p className="text-sm font-medium text-text-primary">Tax (optional)</p>
-        <div className="flex items-center gap-2">
-          <input
-            type="number" min={0} max={100} step="0.1" inputMode="decimal"
-            value={taxRate || ""}
-            onChange={(e) => setTaxRate(Number(e.target.value) || 0)}
-            placeholder="e.g. 7"
-            className="min-h-[44px] w-28 rounded-lg border border-line bg-white px-3 text-base outline-none focus:border-mint"
-          />
-          <span className="text-sm text-text-secondary">% of subtotal</span>
-        </div>
-        {taxAmount > 0 && (
-          <p className="text-right text-sm text-text-secondary">
-            + {formatCurrency(taxAmount)} ({taxRate}%)
-          </p>
+        {/* Discount toggle */}
+        {discountAmount > 0 ? (
+          <div className="flex items-center gap-2 px-4 py-2">
+            <select
+              value={discount.type}
+              onChange={(e) => setDiscount({ ...discount, type: e.target.value as "fixed" | "percent" })}
+              className="h-8 rounded-lg border border-line bg-white px-2 text-xs outline-none focus:border-mint"
+            >
+              <option value="fixed">$</option>
+              <option value="percent">%</option>
+            </select>
+            <input
+              type="number" min={0} step={discount.type === "percent" ? 1 : 0.01}
+              max={discount.type === "percent" ? 100 : undefined}
+              value={discount.value || ""}
+              onChange={(e) => setDiscount({ ...discount, value: Number(e.target.value) || 0 })}
+              autoFocus
+              className="h-8 w-24 rounded-lg border border-line px-2 text-sm outline-none focus:border-mint"
+            />
+            <span className="flex-1 text-right text-sm text-danger">
+              − {formatCurrency(discountAmount)}
+            </span>
+            <button type="button" onClick={() => setDiscount({ type: "fixed", value: 0 })}
+              className="text-text-secondary hover:text-text-primary text-xs">✕</button>
+          </div>
+        ) : (
+          <button type="button" onClick={() => setDiscount({ type: "fixed", value: 0.01 })}
+            className="flex w-full items-center gap-1.5 px-4 py-2 text-xs font-semibold text-mint-dark text-left">
+            + Add discount
+          </button>
         )}
+
+        {/* Tax toggle */}
+        {taxRate > 0 ? (
+          <div className="flex items-center gap-2 px-4 py-2">
+            <input
+              type="number" min={0} max={100} step="0.1" inputMode="decimal"
+              value={taxRate || ""}
+              onChange={(e) => setTaxRate(Number(e.target.value) || 0)}
+              className="h-8 w-20 rounded-lg border border-line px-2 text-sm outline-none focus:border-mint"
+            />
+            <span className="text-xs text-text-secondary">% tax</span>
+            <span className="flex-1 text-right text-sm text-text-secondary">
+              + {formatCurrency(taxAmount)}
+            </span>
+            <button type="button" onClick={() => setTaxRate(0)}
+              className="text-text-secondary hover:text-text-primary text-xs">✕</button>
+          </div>
+        ) : (
+          <button type="button" onClick={() => setTaxRate(0.1)}
+            className="flex w-full items-center gap-1.5 px-4 py-2 text-xs font-semibold text-mint-dark text-left">
+            + Add tax
+          </button>
+        )}
+
+        {/* Total row */}
+        <div className="flex items-center justify-between px-4 py-3">
+          <span className="text-sm text-text-secondary">Total</span>
+          <span className="font-display text-xl font-bold text-mint-dark">{formatCurrency(total)}</span>
+        </div>
       </div>
 
       {/* Deposit */}
@@ -289,19 +311,6 @@ export function EstimateForm({
             )}
           </div>
         )}
-      </div>
-
-      {/* Total */}
-      <div className="flex items-center justify-between rounded-card border border-line bg-white p-4">
-        <div>
-          <span className="text-sm text-text-secondary">Estimate total</span>
-          {discountAmount > 0 && (
-            <p className="text-xs text-text-secondary line-through">{formatCurrency(subtotal)}</p>
-          )}
-        </div>
-        <span className="font-display text-xl font-bold text-mint-dark">
-          {formatCurrency(total)}
-        </span>
       </div>
 
       {/* Terms & conditions */}

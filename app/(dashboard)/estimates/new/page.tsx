@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { getCurrentUser } from "@/lib/session";
+import { getCurrentUser, hasGhlCreds } from "@/lib/session";
 import { getClients, getProducts } from "@/lib/data";
+import { listEstimates } from "@/lib/ghl";
 import { EstimateForm } from "@/components/modules/EstimateForm";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +17,17 @@ export default async function NewEstimatePage({
     getClients(user.id),
     getProducts(user.id),
   ]);
-  const defaultTerms = user.default_terms ?? "";
+  // Use saved default terms; if none saved yet, try pulling from most recent GHL estimate
+  let defaultTerms = user.default_terms ?? "";
+  if (!defaultTerms && hasGhlCreds(user)) {
+    const ghlRes = await listEstimates(user.ghl_location_id, user.ghl_api_key, { limit: 5 });
+    if (ghlRes.ok && ghlRes.data?.estimates?.length) {
+      for (const est of ghlRes.data.estimates) {
+        const t = typeof est.terms === "string" ? est.terms.trim() : "";
+        if (t) { defaultTerms = t; break; }
+      }
+    }
+  }
 
   return (
     <div className="space-y-5">
