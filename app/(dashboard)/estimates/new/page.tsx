@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getCurrentUser, hasGhlCreds } from "@/lib/session";
 import { getClients, getProducts } from "@/lib/data";
-import { listEstimates } from "@/lib/ghl";
+import { listEstimates, getEstimate } from "@/lib/ghl";
 import { EstimateForm } from "@/components/modules/EstimateForm";
 
 export const dynamic = "force-dynamic";
@@ -17,13 +17,20 @@ export default async function NewEstimatePage({
     getClients(user.id),
     getProducts(user.id),
   ]);
-  // Use saved default terms; if none saved yet, try pulling from most recent GHL estimate
+  // Use saved default terms; if none saved yet, fetch full detail of most recent GHL estimate
+  // (the list API only returns summary objects — terms live in the detail endpoint)
   let defaultTerms = user.default_terms ?? "";
   if (!defaultTerms && hasGhlCreds(user)) {
-    const ghlRes = await listEstimates(user.ghl_location_id, user.ghl_api_key, { limit: 5 });
-    if (ghlRes.ok && ghlRes.data?.estimates?.length) {
-      for (const est of ghlRes.data.estimates) {
-        const t = typeof est.terms === "string" ? est.terms.trim() : "";
+    const listRes = await listEstimates(user.ghl_location_id, user.ghl_api_key, { limit: 10 });
+    if (listRes.ok && listRes.data?.estimates?.length) {
+      for (const est of listRes.data.estimates) {
+        const id = (est._id ?? est.id) as string | undefined;
+        if (!id) continue;
+        const detail = await getEstimate(user.ghl_location_id, user.ghl_api_key, id);
+        if (!detail.ok) continue;
+        // GHL wraps it under `estimate` or returns it flat
+        const obj = (detail.data?.estimate ?? detail.data) as Record<string, unknown> | null;
+        const t = typeof obj?.terms === "string" ? obj.terms.trim() : "";
         if (t) { defaultTerms = t; break; }
       }
     }

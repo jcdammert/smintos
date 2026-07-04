@@ -163,6 +163,18 @@ export function deleteEstimate(
   });
 }
 
+export function getEstimate(
+  locationId: string,
+  apiKey: string,
+  estimateId: string,
+): Promise<GhlResult<{ estimate?: Record<string, unknown>; [key: string]: unknown }>> {
+  return ghlRequest({
+    method: "GET",
+    apiKey,
+    path: `/invoices/estimate/${estimateId}?altId=${encodeURIComponent(locationId)}&altType=location`,
+  });
+}
+
 export function sendEstimate(
   locationId: string,
   apiKey: string,
