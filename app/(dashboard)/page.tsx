@@ -12,7 +12,7 @@ import {
   EstimatePipelineCard,
   InvoicePipelineCard,
 } from "@/components/modules/PipelineCard";
-import { SyncAllButton } from "@/components/modules/SyncAllButton";
+import { SyncIconButton } from "@/components/modules/SyncAllButton";
 import type { AppointmentStatus } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -80,18 +80,21 @@ export default async function DashboardHome() {
             {name}
           </h1>
         </div>
-        <button
-          aria-label="Notifications"
-          className="relative flex h-11 w-11 items-center justify-center rounded-full border border-line bg-white"
-        >
-          <svg viewBox="0 0 24 24" className="h-5 w-5 text-text-primary" fill="none" stroke="currentColor" strokeWidth="1.8">
-            <path d="M6 8a6 6 0 1112 0c0 7 3 7 3 9H3c0-2 3-2 3-9z" strokeLinejoin="round" />
-            <path d="M10 21a2 2 0 004 0" strokeLinecap="round" />
-          </svg>
-          {overdueInvoices.length > 0 && (
-            <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-danger" />
-          )}
-        </button>
+        <div className="flex items-center gap-2">
+          <SyncIconButton />
+          <button
+            aria-label="Notifications"
+            className="relative flex h-11 w-11 items-center justify-center rounded-full border border-line bg-white"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5 text-text-primary" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <path d="M6 8a6 6 0 1112 0c0 7 3 7 3 9H3c0-2 3-2 3-9z" strokeLinejoin="round" />
+              <path d="M10 21a2 2 0 004 0" strokeLinecap="round" />
+            </svg>
+            {overdueInvoices.length > 0 && (
+              <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-danger" />
+            )}
+          </button>
+        </div>
       </header>
 
       {/* 2. Stat pills */}
@@ -101,10 +104,7 @@ export default async function DashboardHome() {
         <StatPill label="Overdue" value={overdueInvoices.length} danger />
       </section>
 
-      {/* 3. Sync button */}
-      <SyncAllButton />
-
-      {/* 4. Today's Jobs */}
+      {/* 3. Today's Jobs */}
       <section>
         <SectionHeader
           title="Today's Jobs"
