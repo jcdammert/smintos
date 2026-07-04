@@ -405,6 +405,8 @@ export async function createEstimateAction(formData: FormData) {
       // GHL requires both `title` AND `name`.
       title: estimateName,
       name: estimateName,
+      // Set the EST- prefix so GHL doesn't default to "undefined<seq>"
+      invoiceNumber: { prefix: "EST-" },
       currency: "USD",
       businessDetails: { name: userRecord?.business_name ?? "My Business" },
       issueDate: today,
