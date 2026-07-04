@@ -107,6 +107,25 @@ export default async function SettingsPage() {
           </div>
         </Card>
 
+        <Card>
+          <div className="space-y-2">
+            <label htmlFor="default_terms" className="block text-sm font-medium text-text-primary">
+              Default terms &amp; conditions
+            </label>
+            <p className="text-xs text-text-secondary">
+              Pre-filled on every new estimate. You can edit or remove per estimate.
+            </p>
+            <textarea
+              id="default_terms"
+              name="default_terms"
+              rows={6}
+              defaultValue={user.default_terms ?? ""}
+              placeholder="e.g. Payment is due in full on the day of service…"
+              className="w-full rounded-card border border-line bg-white px-4 py-3 text-sm outline-none focus:border-mint focus:ring-2 focus:ring-mint/30 resize-y"
+            />
+          </div>
+        </Card>
+
         <Button type="submit" size="lg">
           Save changes
         </Button>

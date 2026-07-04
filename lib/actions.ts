@@ -337,6 +337,11 @@ export async function createEstimateAction(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim() || null;
   const rawItems = String(formData.get("line_items") ?? "[]");
   const rawDiscount = String(formData.get("discount") ?? "{}");
+  const expiryDate = String(formData.get("expiry_date") ?? "").trim() || null;
+  const taxRate = Number(formData.get("tax_rate") ?? 0) || 0;
+  const terms = String(formData.get("terms") ?? "").trim() || null;
+  const depositAmount = Number(formData.get("deposit_amount") ?? 0) || 0;
+  const depositType = String(formData.get("deposit_type") ?? "fixed") as "fixed" | "percent";
   if (!clientId) return;
 
   let lineItems: LineItem[] = [];
@@ -354,7 +359,8 @@ export async function createEstimateAction(formData: FormData) {
   } catch { /* no discount */ }
 
   const subtotal = lineItems.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
-  const total = Math.max(0, subtotal - discountAmount);
+  const taxAmount = taxRate > 0 ? subtotal * (taxRate / 100) : 0;
+  const total = Math.max(0, subtotal - discountAmount + taxAmount);
 
   // Push to GHL as a draft estimate when credentials are connected.
   let ghlEstimateId: string | null = null;
@@ -376,7 +382,7 @@ export async function createEstimateAction(formData: FormData) {
       .maybeSingle();
 
     const today = new Date(Date.now() - 86400000).toISOString().slice(0, 10); // yesterday — avoids UTC/timezone future-date rejection
-    const expiry = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+    const expiry = expiryDate ?? new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10);
 
     // Normalise phone to E.164 (+1XXXXXXXXXX) — GHL rejects other formats.
     const rawPhone = fullClient.phone ?? "";
@@ -405,15 +411,29 @@ export async function createEstimateAction(formData: FormData) {
       expiryDate: expiry,
       discount: { type: "percentage", value: 0 },
       frequencySettings: { enabled: false },
+      ...(terms ? { terms } : {}),
+      ...(depositAmount > 0 ? {
+        paymentSchedule: {
+          enabled: true,
+          schedules: [
+            {
+              name: "Deposit",
+              amount: depositType === "percent"
+                ? Math.round(total * (depositAmount / 100) * 100) / 100
+                : depositAmount,
+              dueDate: today,
+            },
+          ],
+        },
+      } : {}),
       items: lineItems.map((i): GhlInvoiceItem => {
         const item: GhlInvoiceItem = {
-          // GHL requires `type` on each line item.
           type: "one_time",
           name: i.description,
           qty: i.quantity,
           amount: i.unitPrice,
           currency: "USD",
-          taxes: [],
+          taxes: taxRate > 0 ? [{ rate: taxRate, name: "Tax", description: `${taxRate}%` }] : [],
         };
         if (i.notes) item.description = i.notes;
         return item;
@@ -463,6 +483,11 @@ export async function createEstimateAction(formData: FormData) {
       line_items: lineItems,
       total,
       status: "draft",
+      expires_at: expiryDate ? new Date(expiryDate + "T00:00:00").toISOString() : null,
+      tax_rate: taxRate > 0 ? taxRate : null,
+      deposit_amount: depositAmount > 0 ? depositAmount : null,
+      deposit_type: depositAmount > 0 ? depositType : null,
+      terms: terms || null,
     })
     .select("id, ghl_invoice_id")
     .maybeSingle();
@@ -2157,11 +2182,13 @@ export async function updateSettingsAction(formData: FormData) {
     String(formData.get("ghl_location_id") ?? "").trim() || null;
   const ghl_api_key_raw = String(formData.get("ghl_api_key") ?? "").trim();
   const timezone = String(formData.get("timezone") ?? "").trim() || null;
+  const default_terms = String(formData.get("default_terms") ?? "").trim() || null;
 
   const update: Record<string, string | null> = {
     business_name,
     ghl_location_id,
     timezone,
+    default_terms,
   };
   // Only overwrite the key if a new value was entered (masked field).
   if (ghl_api_key_raw && !ghl_api_key_raw.startsWith("•")) {

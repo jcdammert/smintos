@@ -14,42 +14,54 @@ import type { Client, Discount, Estimate, LineItem, Product } from "@/types";
 let idCounter = 0;
 function newItem(): LineItem {
   idCounter += 1;
-  return {
-    id: `tmp-${Date.now()}-${idCounter}`,
-    description: "",
-    quantity: 1,
-    unitPrice: 0,
-  };
+  return { id: `tmp-${Date.now()}-${idCounter}`, description: "", quantity: 1, unitPrice: 0 };
+}
+
+function defaultExpiry() {
+  const d = new Date();
+  d.setDate(d.getDate() + 14);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 export function EstimateForm({
   clients,
   products,
   defaultClientId,
+  defaultTerms = "",
   editingEstimate,
 }: {
   clients: Client[];
   products: Product[];
   defaultClientId?: string;
+  defaultTerms?: string;
   editingEstimate?: Estimate;
 }) {
-  const [clientId, setClientId] = useState(editingEstimate?.client_id ?? defaultClientId ?? "");
-  const [name, setName] = useState(editingEstimate?.name ?? "");
-  const [items, setItems] = useState<LineItem[]>(
-    editingEstimate?.line_items?.length
-      ? (editingEstimate.line_items as LineItem[])
-      : [newItem()],
+  const [clientId, setClientId]   = useState(editingEstimate?.client_id ?? defaultClientId ?? "");
+  const [name, setName]           = useState(editingEstimate?.name ?? "");
+  const [items, setItems]         = useState<LineItem[]>(
+    editingEstimate?.line_items?.length ? (editingEstimate.line_items as LineItem[]) : [newItem()],
   );
-  const [discount, setDiscount] = useState<Discount>({ type: "fixed", value: 0 });
+  const [discount, setDiscount]   = useState<Discount>({ type: "fixed", value: 0 });
+  const [expiryDate, setExpiryDate] = useState(defaultExpiry());
+  const [taxRate, setTaxRate]     = useState(0);
+  const [includeTerms, setIncludeTerms] = useState(true);
+  const [terms, setTerms]         = useState(editingEstimate?.terms ?? defaultTerms);
+  const [depositEnabled, setDepositEnabled] = useState(false);
+  const [depositAmount, setDepositAmount]   = useState(0);
+  const [depositType, setDepositType]       = useState<"fixed" | "percent">("fixed");
   const [pending, start] = useTransition();
 
   const subtotal = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
   const discountAmount = discount.value > 0
-    ? discount.type === "percent"
-      ? subtotal * (discount.value / 100)
-      : discount.value
+    ? discount.type === "percent" ? subtotal * (discount.value / 100) : discount.value
     : 0;
-  const total = Math.max(0, subtotal - discountAmount);
+  const taxAmount = taxRate > 0 ? subtotal * (taxRate / 100) : 0;
+  const total = Math.max(0, subtotal - discountAmount + taxAmount);
+
+  const depositDollar = depositEnabled && depositAmount > 0
+    ? depositType === "percent" ? total * (depositAmount / 100) : depositAmount
+    : 0;
 
   function update(id: string, patch: Partial<LineItem>) {
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
@@ -59,10 +71,7 @@ export function EstimateForm({
   }
   function addProductAsItem(item: LineItem) {
     setItems((prev) => {
-      // If the first row is empty, replace it; otherwise append.
-      if (prev.length === 1 && !prev[0].description && prev[0].unitPrice === 0) {
-        return [item];
-      }
+      if (prev.length === 1 && !prev[0].description && prev[0].unitPrice === 0) return [item];
       return [...prev, item];
     });
   }
@@ -74,6 +83,11 @@ export function EstimateForm({
     fd.set("name", name);
     fd.set("line_items", JSON.stringify(items.filter((i) => i.description)));
     fd.set("discount", JSON.stringify(discount));
+    fd.set("expiry_date", expiryDate);
+    fd.set("tax_rate", String(taxRate));
+    fd.set("terms", includeTerms ? terms : "");
+    fd.set("deposit_amount", depositEnabled ? String(depositAmount) : "0");
+    fd.set("deposit_type", depositType);
     if (editingEstimate) {
       start(() => updateEstimateAction(editingEstimate.id, fd));
     } else {
@@ -91,10 +105,9 @@ export function EstimateForm({
 
   return (
     <div className="space-y-5">
+      {/* Name */}
       <label className="block">
-        <span className="mb-1.5 block text-sm font-medium text-text-primary">
-          Estimate name
-        </span>
+        <span className="mb-1.5 block text-sm font-medium text-text-primary">Estimate name</span>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -103,10 +116,9 @@ export function EstimateForm({
         />
       </label>
 
+      {/* Client */}
       <label className="block">
-        <span className="mb-1.5 block text-sm font-medium text-text-primary">
-          Client
-        </span>
+        <span className="mb-1.5 block text-sm font-medium text-text-primary">Client</span>
         <select
           value={clientId}
           onChange={(e) => setClientId(e.target.value)}
@@ -114,33 +126,34 @@ export function EstimateForm({
         >
           <option value="">Select a client…</option>
           {clients.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
+            <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
       </label>
 
+      {/* Expiry date */}
+      <label className="block">
+        <span className="mb-1.5 block text-sm font-medium text-text-primary">Expiry date</span>
+        <input
+          type="date"
+          value={expiryDate}
+          onChange={(e) => setExpiryDate(e.target.value)}
+          className="min-h-[48px] w-full rounded-card border border-line bg-white px-4 text-base outline-none focus:border-mint focus:ring-2 focus:ring-mint/30"
+        />
+      </label>
+
+      {/* Line items */}
       <div className="space-y-3">
-        <span className="block text-sm font-medium text-text-primary">
-          Line items
-        </span>
-
+        <span className="block text-sm font-medium text-text-primary">Line items</span>
         <ProductPicker products={products} onPick={addProductAsItem} />
-
         {items.map((item) => (
-          <div
-            key={item.id}
-            className="space-y-2 rounded-card border border-line bg-white p-3"
-          >
-            {/* Single-line name */}
+          <div key={item.id} className="space-y-2 rounded-card border border-line bg-white p-3">
             <input
               value={item.description}
               onChange={(e) => update(item.id, { description: e.target.value })}
               placeholder="Item name (e.g. Full Vehicle Ceramic Tint)"
               className="min-h-[44px] w-full rounded-lg border border-line px-3 text-base outline-none focus:border-mint"
             />
-            {/* Optional description — shown if already set, toggled by link */}
             {item.notes !== undefined ? (
               <textarea
                 value={item.notes}
@@ -150,11 +163,7 @@ export function EstimateForm({
                 className="min-h-[44px] w-full resize-y rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-mint"
               />
             ) : (
-              <button
-                type="button"
-                onClick={() => update(item.id, { notes: "" })}
-                className="text-xs text-mint-dark"
-              >
+              <button type="button" onClick={() => update(item.id, { notes: "" })} className="text-xs text-mint-dark">
                 + Add description
               </button>
             )}
@@ -162,47 +171,29 @@ export function EstimateForm({
               <label className="flex-1">
                 <span className="mb-1 block text-xs text-text-secondary">Qty</span>
                 <input
-                  type="number"
-                  min={1}
-                  inputMode="numeric"
-                  value={item.quantity}
-                  onChange={(e) =>
-                    update(item.id, { quantity: Number(e.target.value) || 0 })
-                  }
+                  type="number" min={1} inputMode="numeric" value={item.quantity}
+                  onChange={(e) => update(item.id, { quantity: Number(e.target.value) || 0 })}
                   className="min-h-[44px] w-full rounded-lg border border-line px-3 text-base outline-none focus:border-mint"
                 />
               </label>
               <label className="flex-1">
-                <span className="mb-1 block text-xs text-text-secondary">
-                  Unit price
-                </span>
+                <span className="mb-1 block text-xs text-text-secondary">Unit price</span>
                 <input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  inputMode="decimal"
-                  value={item.unitPrice}
-                  onChange={(e) =>
-                    update(item.id, { unitPrice: Number(e.target.value) || 0 })
-                  }
+                  type="number" min={0} step="0.01" inputMode="decimal" value={item.unitPrice}
+                  onChange={(e) => update(item.id, { unitPrice: Number(e.target.value) || 0 })}
                   className="min-h-[44px] w-full rounded-lg border border-line px-3 text-base outline-none focus:border-mint"
                 />
               </label>
               <button
-                type="button"
-                onClick={() => remove(item.id)}
-                aria-label="Remove line item"
+                type="button" onClick={() => remove(item.id)} aria-label="Remove line item"
                 className="mt-5 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg text-text-secondary hover:bg-black/5"
-              >
-                ✕
-              </button>
+              >✕</button>
             </div>
             <p className="text-right text-sm font-medium text-text-secondary">
               {formatCurrency(item.quantity * item.unitPrice)}
             </p>
           </div>
         ))}
-
         <button
           type="button"
           onClick={() => setItems((prev) => [...prev, newItem()])}
@@ -225,9 +216,7 @@ export function EstimateForm({
             <option value="percent">% Percent</option>
           </select>
           <input
-            type="number"
-            min={0}
-            step={discount.type === "percent" ? 1 : 0.01}
+            type="number" min={0} step={discount.type === "percent" ? 1 : 0.01}
             max={discount.type === "percent" ? 100 : undefined}
             value={discount.value || ""}
             onChange={(e) => setDiscount({ ...discount, value: Number(e.target.value) || 0 })}
@@ -237,12 +226,72 @@ export function EstimateForm({
         </div>
         {discountAmount > 0 && (
           <p className="text-right text-sm text-danger">
-            − {formatCurrency(discountAmount)}
-            {discount.type === "percent" ? ` (${discount.value}%)` : ""}
+            − {formatCurrency(discountAmount)}{discount.type === "percent" ? ` (${discount.value}%)` : ""}
           </p>
         )}
       </div>
 
+      {/* Tax */}
+      <div className="rounded-card border border-line bg-white p-3 space-y-2">
+        <p className="text-sm font-medium text-text-primary">Tax (optional)</p>
+        <div className="flex items-center gap-2">
+          <input
+            type="number" min={0} max={100} step="0.1" inputMode="decimal"
+            value={taxRate || ""}
+            onChange={(e) => setTaxRate(Number(e.target.value) || 0)}
+            placeholder="e.g. 7"
+            className="min-h-[44px] w-28 rounded-lg border border-line bg-white px-3 text-base outline-none focus:border-mint"
+          />
+          <span className="text-sm text-text-secondary">% of subtotal</span>
+        </div>
+        {taxAmount > 0 && (
+          <p className="text-right text-sm text-text-secondary">
+            + {formatCurrency(taxAmount)} ({taxRate}%)
+          </p>
+        )}
+      </div>
+
+      {/* Deposit */}
+      <div className="rounded-card border border-line bg-white p-3 space-y-3">
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={depositEnabled}
+            onChange={(e) => setDepositEnabled(e.target.checked)}
+            className="h-4 w-4 rounded border-line accent-mint"
+          />
+          <span className="text-sm font-medium text-text-primary">Require deposit</span>
+        </label>
+        {depositEnabled && (
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <select
+                value={depositType}
+                onChange={(e) => setDepositType(e.target.value as "fixed" | "percent")}
+                className="min-h-[44px] rounded-lg border border-line bg-white px-3 text-sm outline-none focus:border-mint"
+              >
+                <option value="fixed">$ Fixed</option>
+                <option value="percent">% of total</option>
+              </select>
+              <input
+                type="number" min={0} step={depositType === "percent" ? 1 : 0.01}
+                max={depositType === "percent" ? 100 : undefined}
+                value={depositAmount || ""}
+                onChange={(e) => setDepositAmount(Number(e.target.value) || 0)}
+                placeholder={depositType === "percent" ? "e.g. 50" : "e.g. 100.00"}
+                className="min-h-[44px] flex-1 rounded-lg border border-line bg-white px-3 text-base outline-none focus:border-mint"
+              />
+            </div>
+            {depositDollar > 0 && (
+              <p className="text-right text-sm font-semibold text-mint-dark">
+                Deposit due: {formatCurrency(depositDollar)}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Total */}
       <div className="flex items-center justify-between rounded-card border border-line bg-white p-4">
         <div>
           <span className="text-sm text-text-secondary">Estimate total</span>
@@ -255,12 +304,29 @@ export function EstimateForm({
         </span>
       </div>
 
-      <Button
-        type="button"
-        size="lg"
-        disabled={pending || !clientId}
-        onClick={submit}
-      >
+      {/* Terms & conditions */}
+      <div className="rounded-card border border-line bg-white p-3 space-y-2">
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={includeTerms}
+            onChange={(e) => setIncludeTerms(e.target.checked)}
+            className="h-4 w-4 rounded border-line accent-mint"
+          />
+          <span className="text-sm font-medium text-text-primary">Include terms &amp; conditions</span>
+        </label>
+        {includeTerms && (
+          <textarea
+            value={terms}
+            onChange={(e) => setTerms(e.target.value)}
+            rows={6}
+            placeholder="Add your terms and conditions…"
+            className="w-full resize-y rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none focus:border-mint"
+          />
+        )}
+      </div>
+
+      <Button type="button" size="lg" disabled={pending || !clientId} onClick={submit}>
         {pending
           ? editingEstimate ? "Saving…" : "Creating…"
           : editingEstimate ? "Save changes" : "Create estimate"}

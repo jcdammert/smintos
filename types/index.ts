@@ -25,6 +25,7 @@ export interface UserRecord {
   ghl_api_key: string | null;
   business_name: string | null;
   timezone: string | null;
+  default_terms: string | null;
   created_at: string;
 }
 
@@ -56,6 +57,10 @@ export interface Estimate {
   sent_at: string | null;
   viewed_at: string | null;
   expires_at: string | null;
+  tax_rate: number | null;
+  deposit_amount: number | null;
+  deposit_type: string | null;
+  terms: string | null;
   created_at: string;
 }
 

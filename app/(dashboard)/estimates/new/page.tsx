@@ -16,6 +16,7 @@ export default async function NewEstimatePage({
     getClients(user.id),
     getProducts(user.id),
   ]);
+  const defaultTerms = user.default_terms ?? "";
 
   return (
     <div className="space-y-5">
@@ -36,6 +37,7 @@ export default async function NewEstimatePage({
         clients={clients}
         products={products}
         defaultClientId={searchParams.client}
+        defaultTerms={defaultTerms}
       />
     </div>
   );
