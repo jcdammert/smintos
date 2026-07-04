@@ -11,8 +11,10 @@ import { Card, SectionHeader, EmptyState } from "@/components/ui/Card";
 import { EstimateBadge, InvoiceBadge } from "@/components/ui/Badge";
 import { LinkButton } from "@/components/ui/Button";
 import { NotesSection } from "@/components/modules/NotesSection";
+import { ContactTags } from "@/components/modules/ContactTags";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { getUserTimezone } from "@/lib/timezone";
+import { fetchContactTagsAction } from "@/lib/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -27,12 +29,16 @@ export default async function ClientDetailPage({
   const client = await getClient(user.id, params.id);
   if (!client) notFound();
 
-  const [estimates, invoices, notes, tz] = await Promise.all([
+  const [estimates, invoices, notes, tz, tagsResult] = await Promise.all([
     getEstimatesForClient(user.id, client.id),
     getInvoicesForClient(user.id, client.id),
     getNotes(user.id, client.id),
     getUserTimezone(),
+    client.ghl_contact_id
+      ? fetchContactTagsAction(client.ghl_contact_id)
+      : Promise.resolve({ ok: false, tags: [] as string[] }),
   ]);
+  const initialTags = tagsResult.tags;
 
   return (
     <div className="space-y-5">
@@ -71,6 +77,18 @@ export default async function ClientDetailPage({
           />
         </dl>
       </Card>
+
+      {client.ghl_contact_id && (
+        <section>
+          <SectionHeader title="Tags" />
+          <div className="rounded-card border border-line bg-white p-3">
+            <ContactTags
+              ghlContactId={client.ghl_contact_id}
+              initialTags={initialTags}
+            />
+          </div>
+        </section>
+      )}
 
       <div className="grid grid-cols-2 gap-2">
         <LinkButton href={`/estimates/new?client=${client.id}`} size="sm">

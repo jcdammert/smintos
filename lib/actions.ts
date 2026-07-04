@@ -29,6 +29,10 @@ import {
   searchConversations,
   listConversationMessages,
   getCallTranscription,
+  getContact,
+  getLocationTags,
+  addContactTags,
+  removeContactTags,
 } from "@/lib/ghl";
 import type { GhlInvoiceItem, LineItem } from "@/types";
 
@@ -2371,4 +2375,48 @@ export async function syncAllGhlAction(): Promise<{
 
   revalidatePath("/");
   return { ok: true, summary };
+}
+
+// ---------------------------------------------------------------------------
+// Contact tags
+// ---------------------------------------------------------------------------
+
+export async function fetchContactTagsAction(
+  ghlContactId: string,
+): Promise<{ ok: boolean; tags: string[]; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user || !hasGhlCreds(user)) return { ok: false, tags: [], error: "No GHL credentials" };
+  const res = await getContact(user.ghl_api_key, ghlContactId);
+  if (!res.ok) return { ok: false, tags: [], error: res.error ?? "Failed" };
+  return { ok: true, tags: res.data?.contact?.tags ?? [] };
+}
+
+export async function fetchLocationTagsAction(): Promise<{ ok: boolean; tags: string[]; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user || !hasGhlCreds(user)) return { ok: false, tags: [], error: "No GHL credentials" };
+  const res = await getLocationTags(user.ghl_location_id, user.ghl_api_key);
+  if (!res.ok) return { ok: false, tags: [], error: res.error ?? "Failed" };
+  return { ok: true, tags: (res.data?.tags ?? []).map((t) => t.name) };
+}
+
+export async function addContactTagAction(
+  ghlContactId: string,
+  tag: string,
+): Promise<{ ok: boolean; tags: string[]; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user || !hasGhlCreds(user)) return { ok: false, tags: [], error: "No GHL credentials" };
+  const res = await addContactTags(user.ghl_api_key, ghlContactId, [tag]);
+  if (!res.ok) return { ok: false, tags: [], error: res.error ?? "Failed" };
+  return { ok: true, tags: res.data?.tags ?? [] };
+}
+
+export async function removeContactTagAction(
+  ghlContactId: string,
+  tag: string,
+): Promise<{ ok: boolean; tags: string[]; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user || !hasGhlCreds(user)) return { ok: false, tags: [], error: "No GHL credentials" };
+  const res = await removeContactTags(user.ghl_api_key, ghlContactId, [tag]);
+  if (!res.ok) return { ok: false, tags: [], error: res.error ?? "Failed" };
+  return { ok: true, tags: res.data?.tags ?? [] };
 }

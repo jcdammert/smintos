@@ -518,6 +518,58 @@ export function listConversationMessages(
   });
 }
 
+// ---------------------------------------------------------------------------
+// Tags
+// ---------------------------------------------------------------------------
+
+export function getContact(
+  apiKey: string,
+  contactId: string,
+): Promise<GhlResult<{ contact: { tags?: string[]; [key: string]: unknown } }>> {
+  return ghlRequest({
+    method: "GET",
+    apiKey,
+    path: `/contacts/${contactId}`,
+  });
+}
+
+export function getLocationTags(
+  locationId: string,
+  apiKey: string,
+): Promise<GhlResult<{ tags: Array<{ id: string; name: string }> }>> {
+  return ghlRequest({
+    method: "GET",
+    apiKey,
+    path: `/locations/${locationId}/tags`,
+  });
+}
+
+export function addContactTags(
+  apiKey: string,
+  contactId: string,
+  tags: string[],
+): Promise<GhlResult<{ tags: string[] }>> {
+  return ghlRequest({
+    method: "POST",
+    apiKey,
+    path: `/contacts/${contactId}/tags`,
+    body: { tags },
+  });
+}
+
+export function removeContactTags(
+  apiKey: string,
+  contactId: string,
+  tags: string[],
+): Promise<GhlResult<{ tags: string[] }>> {
+  return ghlRequest({
+    method: "DELETE",
+    apiKey,
+    path: `/contacts/${contactId}/tags`,
+    body: { tags },
+  });
+}
+
 export function getCallTranscription(
   apiKey: string,
   messageId: string,
