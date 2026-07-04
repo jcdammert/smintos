@@ -801,7 +801,7 @@ export function CalendarView({
   const searchParams = useSearchParams();
   const router = useRouter();
   const [viewMode, setViewMode] = useState<ViewMode>("day");
-  const [currentDate, setCurrentDate] = useState(() => startOfDay(new Date(today)));
+  const [currentDate, setCurrentDate] = useState(() => startOfDay(new Date(today + "T00:00:00")));
   const [appointments, setAppointments] = useState(initialAppointments);
   const [selectedAppt, setSelectedAppt] = useState<Appointment | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -859,7 +859,7 @@ export function CalendarView({
   }
   function switchView(v: ViewMode) { setViewMode(v); }
 
-  const todayDate = startOfDay(new Date(today));
+  const todayDate = startOfDay(new Date(today + "T00:00:00"));
   const dayApts   = getApptsForDay(appointments, currentDate);
 
   return (

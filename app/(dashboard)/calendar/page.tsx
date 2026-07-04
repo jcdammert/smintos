@@ -23,7 +23,9 @@ export default async function CalendarPage() {
     weekEnd.toISOString(),
   );
 
-  const todayStr = today.toISOString().split("T")[0];
+  // Use local date parts so the calendar opens on the correct day in the user's timezone
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
 
   return (
     <Suspense>
