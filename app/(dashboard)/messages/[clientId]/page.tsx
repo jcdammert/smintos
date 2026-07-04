@@ -11,16 +11,16 @@ import type { Message } from "@/types";
 
 export const dynamic = "force-dynamic";
 
-// GHL formats call bodies as "H:MM AM/PM" or "H:MM AM/PM - N" (N = seconds)
-const GHL_CALL_BODY = /^\d{1,2}:\d{2}\s*[AP]M(\s*-\s*\d+)?$/i;
-
 function isCallMessage(m: Message) {
   const ch = (m.channel ?? "").toLowerCase();
   const chNum = Number(m.channel);
-  return ch.includes("call") || ch.includes("voicemail") ||
-    chNum === 4 || chNum === 5 ||
-    m.call_duration !== null || m.call_status !== null ||
-    GHL_CALL_BODY.test(m.body?.trim() ?? "");
+  if (ch.includes("call") || ch.includes("voicemail") || chNum === 4 || chNum === 5) return true;
+  if (m.call_duration !== null || m.call_status !== null) return true;
+  // GHL stores call bodies as a short time string like "1:13 PM" or "1:13 PM - 24"
+  // Use loose checks: short, starts with digits+colon, contains AM or PM anywhere
+  const body = m.body?.trim() ?? "";
+  return body.length > 0 && body.length < 20 &&
+    /^\d{1,2}:\d{2}/.test(body) && /[AP]M/i.test(body);
 }
 
 function fmtDuration(secs: number) {
