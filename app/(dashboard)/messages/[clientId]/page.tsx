@@ -12,7 +12,7 @@ import type { Message } from "@/types";
 export const dynamic = "force-dynamic";
 
 // GHL formats call bodies as "H:MM AM/PM" or "H:MM AM/PM - N" (N = seconds)
-const GHL_CALL_BODY = /^\d{1,2}:\d{2} [AP]M( - \d+)?$/;
+const GHL_CALL_BODY = /^\d{1,2}:\d{2}\s*[AP]M(\s*-\s*\d+)?$/i;
 
 function isCallMessage(m: Message) {
   const ch = (m.channel ?? "").toLowerCase();

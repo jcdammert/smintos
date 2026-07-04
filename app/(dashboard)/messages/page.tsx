@@ -6,7 +6,7 @@ import { formatTime, formatDate } from "@/lib/format";
 import { getUserTimezone } from "@/lib/timezone";
 import type { Message } from "@/types";
 
-const GHL_CALL_BODY = /^\d{1,2}:\d{2} [AP]M( - \d+)?$/;
+const GHL_CALL_BODY = /^\d{1,2}:\d{2}\s*[AP]M(\s*-\s*\d+)?$/i;
 
 function threadPreview(last: Message): string {
   const ch = (last.channel ?? "").toLowerCase();
