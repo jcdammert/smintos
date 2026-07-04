@@ -6,6 +6,7 @@ import { ReplyForm } from "@/components/modules/ReplyForm";
 import { ScrollToBottom } from "@/components/modules/ScrollToBottom";
 import { formatTime, formatDate } from "@/lib/format";
 import { getUserTimezone } from "@/lib/timezone";
+import { CallTranscriptLoader } from "@/components/modules/CallTranscriptLoader";
 import type { Message } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -58,13 +59,11 @@ function CallCard({ m, tz }: { m: Message; tz: string }) {
           <audio controls src={m.recording_url} className="h-10 w-full" />
         </div>
       )}
-      {m.transcript && (
-        <details className="border-t border-line">
-          <summary className="cursor-pointer px-4 py-2.5 text-xs font-semibold text-mint-dark list-none flex items-center gap-1.5">
-            <span>📄</span> View transcript
-          </summary>
-          <p className="px-4 pb-3 text-xs text-text-secondary whitespace-pre-wrap leading-relaxed">{m.transcript}</p>
-        </details>
+      {m.ghl_message_id && (
+        <CallTranscriptLoader
+          messageId={m.ghl_message_id}
+          initialTranscript={m.transcript}
+        />
       )}
     </div>
   );

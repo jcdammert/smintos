@@ -517,3 +517,14 @@ export function listConversationMessages(
     path: `/conversations/${conversationId}/messages?${q.toString()}`,
   });
 }
+
+export function getCallTranscription(
+  apiKey: string,
+  messageId: string,
+): Promise<GhlResult<{ transcriptionText?: string; url?: string }>> {
+  return ghlRequest<{ transcriptionText?: string; url?: string }>({
+    method: "GET",
+    apiKey,
+    path: `/conversations/messages/${messageId}/transcription`,
+  });
+}

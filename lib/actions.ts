@@ -28,6 +28,7 @@ import {
   sendConversationMessage,
   searchConversations,
   listConversationMessages,
+  getCallTranscription,
 } from "@/lib/ghl";
 import type { GhlInvoiceItem, LineItem } from "@/types";
 
@@ -2091,6 +2092,16 @@ export async function importGhlMessagesAction(): Promise<{
       };
     }).filter((r) => r.ghl_message_id);
 
+    // For call messages without an inline transcript, fetch from GHL's transcription endpoint
+    for (const row of rows) {
+      if (row.call_duration !== null && !row.transcript && row.ghl_message_id) {
+        const tRes = await getCallTranscription(user.ghl_api_key, row.ghl_message_id);
+        if (tRes.ok && tRes.data?.transcriptionText) {
+          row.transcript = tRes.data.transcriptionText;
+        }
+      }
+    }
+
     if (rows.length > 0) {
       const { error } = await supabase
         .from("messages")
@@ -2102,6 +2113,33 @@ export async function importGhlMessagesAction(): Promise<{
   revalidatePath("/messages");
   revalidatePath("/");
   return { imported };
+}
+
+// ─── Fetch transcript for a single call message ─────────────────────────────
+
+export async function fetchCallTranscriptAction(messageId: string): Promise<{
+  ok: boolean;
+  transcript?: string;
+  error?: string;
+}> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+  if (!hasGhlCreds(user)) return { ok: false, error: "Connect GoHighLevel first." };
+
+  const res = await getCallTranscription(user.ghl_api_key, messageId);
+  if (!res.ok || !res.data?.transcriptionText) {
+    return { ok: false, error: "No transcript available for this call." };
+  }
+
+  const supabase = createServiceSupabase();
+  await supabase
+    .from("messages")
+    .update({ transcript: res.data.transcriptionText })
+    .eq("user_id", user.id)
+    .eq("ghl_message_id", messageId);
+
+  revalidatePath("/messages");
+  return { ok: true, transcript: res.data.transcriptionText };
 }
 
 // --- Settings -------------------------------------------------------------
