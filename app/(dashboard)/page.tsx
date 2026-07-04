@@ -154,7 +154,7 @@ export default async function DashboardHome() {
         <SectionHeader
           title="Active Pipeline"
           action={
-            <Link href="/estimates" className="text-sm font-semibold text-mint-dark">
+            <Link href="/library?tab=estimates" className="text-sm font-semibold text-mint-dark">
               View all
             </Link>
           }

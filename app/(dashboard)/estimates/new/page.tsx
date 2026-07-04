@@ -22,7 +22,7 @@ export default async function NewEstimatePage({
     <div className="space-y-5">
       <header className="flex items-center gap-3">
         <Link
-          href="/estimates"
+          href="/library?tab=estimates"
           className="flex h-10 w-10 items-center justify-center rounded-full border border-line bg-white"
           aria-label="Back"
         >
