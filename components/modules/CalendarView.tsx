@@ -533,6 +533,7 @@ function JobDetailSheet({ apt, onClose }: { apt: Appointment; onClose: () => voi
   const [links, setLinks] = useState<{
     estimate: { id: string; estimate_number: string; name: string | null; total: number } | null;
     invoice: { id: string; invoice_number: string; name: string | null; total: number; status: string } | null;
+    clientId: string | null;
   } | null>(null);
 
   const cfg = STATUS_CFG[apt.status] ?? STATUS_CFG.unconfirmed;
@@ -540,9 +541,9 @@ function JobDetailSheet({ apt, onClose }: { apt: Appointment; onClose: () => voi
 
   useEffect(() => {
     const t = requestAnimationFrame(() => setVisible(true));
-    fetchAppointmentLinksAction(apt.id, apt.estimate_id ?? null).then(setLinks);
+    fetchAppointmentLinksAction(apt.id, apt.estimate_id ?? null, apt.contact_id ?? null).then(setLinks);
     return () => cancelAnimationFrame(t);
-  }, [apt.id, apt.estimate_id]);
+  }, [apt.id, apt.estimate_id, apt.contact_id]);
 
   function close() { setVisible(false); setTimeout(onClose, 280); }
 
@@ -611,9 +612,12 @@ function JobDetailSheet({ apt, onClose }: { apt: Appointment; onClose: () => voi
           )}
 
           <div className="grid grid-cols-2 gap-2">
-            <SheetLink href="/clients"   label="View Contact"   icon="👤" />
-            <SheetLink href="/estimates" label="View Estimates" icon="📋" />
-            <SheetLink href="/invoices"  label="View Invoices"  icon="💰" />
+            <SheetLink
+              href={links?.clientId ? `/clients/${links.clientId}` : "/clients"}
+              label="View Contact"
+              icon="👤"
+              onClick={close}
+            />
             {mapsHref && <SheetLink href={mapsHref} label="Get Directions" icon="🗺️" external />}
             {apt.address && (
               <button

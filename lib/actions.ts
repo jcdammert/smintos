@@ -1251,15 +1251,17 @@ export async function convertAppointmentToInvoiceAction(appointmentId: string) {
 export async function fetchAppointmentLinksAction(
   aptId: string,
   estimateId: string | null,
+  ghlContactId: string | null,
 ): Promise<{
   estimate: { id: string; estimate_number: string; name: string | null; total: number } | null;
   invoice: { id: string; invoice_number: string; name: string | null; total: number; status: string } | null;
+  clientId: string | null;
 }> {
   const user = await getCurrentUser();
-  if (!user) return { estimate: null, invoice: null };
+  if (!user) return { estimate: null, invoice: null, clientId: null };
 
   const supabase = createServiceSupabase();
-  const [estRes, invRes] = await Promise.all([
+  const [estRes, invRes, clientRes] = await Promise.all([
     estimateId
       ? supabase
           .from("estimates")
@@ -1276,11 +1278,20 @@ export async function fetchAppointmentLinksAction(
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    ghlContactId
+      ? supabase
+          .from("clients")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("ghl_contact_id", ghlContactId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
 
   return {
     estimate: (estRes.data ?? null) as { id: string; estimate_number: string; name: string | null; total: number } | null,
     invoice: (invRes.data ?? null) as { id: string; invoice_number: string; name: string | null; total: number; status: string } | null,
+    clientId: (clientRes.data as { id: string } | null)?.id ?? null,
   };
 }
 
