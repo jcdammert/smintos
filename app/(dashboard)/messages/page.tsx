@@ -6,11 +6,14 @@ import { formatTime, formatDate } from "@/lib/format";
 import { getUserTimezone } from "@/lib/timezone";
 import type { Message } from "@/types";
 
+const GHL_CALL_BODY = /^\d{1,2}:\d{2} [AP]M( - \d+)?$/;
+
 function threadPreview(last: Message): string {
   const ch = (last.channel ?? "").toLowerCase();
   const chNum = Number(last.channel);
   const isCall = ch.includes("call") || ch.includes("voicemail") ||
-    chNum === 4 || chNum === 5 || last.call_status !== null;
+    chNum === 4 || chNum === 5 || last.call_status !== null ||
+    GHL_CALL_BODY.test(last.body?.trim() ?? "");
   if (!isCall) return last.body || "(no body)";
   const status = last.call_status ?? "";
   const isMissed = ["missed", "no_answer", "cancelled", "busy"].includes(status);

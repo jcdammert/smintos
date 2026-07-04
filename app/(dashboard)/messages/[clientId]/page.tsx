@@ -11,13 +11,16 @@ import type { Message } from "@/types";
 
 export const dynamic = "force-dynamic";
 
+// GHL formats call bodies as "H:MM AM/PM" or "H:MM AM/PM - N" (N = seconds)
+const GHL_CALL_BODY = /^\d{1,2}:\d{2} [AP]M( - \d+)?$/;
+
 function isCallMessage(m: Message) {
   const ch = (m.channel ?? "").toLowerCase();
   const chNum = Number(m.channel);
-  // GHL stores call type as numeric 4, voicemail as 5
   return ch.includes("call") || ch.includes("voicemail") ||
     chNum === 4 || chNum === 5 ||
-    m.call_duration !== null || m.call_status !== null;
+    m.call_duration !== null || m.call_status !== null ||
+    GHL_CALL_BODY.test(m.body?.trim() ?? "");
 }
 
 function fmtDuration(secs: number) {
@@ -30,6 +33,9 @@ function CallCard({ m, tz }: { m: Message; tz: string }) {
   const isOutbound = m.direction === "outbound";
   const status = m.call_status ?? "";
   const isMissed = ["missed", "no_answer", "cancelled", "busy"].includes(status);
+  // Parse duration from body "H:MM AM/PM - N" when not stored explicitly
+  const bodyDurationMatch = m.body?.trim().match(/- (\d+)$/);
+  const duration = m.call_duration ?? (bodyDurationMatch ? parseInt(bodyDurationMatch[1]) : null);
   const isVoicemail = status === "voicemail" || (m.channel ?? "").toLowerCase().includes("voicemail");
 
   let statusLabel = "Call";
@@ -50,11 +56,11 @@ function CallCard({ m, tz }: { m: Message; tz: string }) {
           </p>
           <p className="text-xs text-text-secondary">
             {formatTime(m.created_at, tz)}
-            {m.call_duration ? ` · ${fmtDuration(m.call_duration)}` : ""}
+            {duration ? ` · ${fmtDuration(duration)}` : ""}
           </p>
         </div>
         <span className={`flex-shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${isMissed ? "bg-red-100 text-red-700" : isVoicemail ? "bg-purple-100 text-purple-700" : "bg-mint/15 text-mint-dark"}`}>
-          {isMissed ? "Missed" : isVoicemail ? "Voicemail" : m.call_duration ? fmtDuration(m.call_duration) : "Answered"}
+          {isMissed ? "Missed" : isVoicemail ? "Voicemail" : duration ? fmtDuration(duration) : "Call"}
         </span>
       </div>
       {m.recording_url && (
