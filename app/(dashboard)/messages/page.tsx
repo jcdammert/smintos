@@ -8,7 +8,9 @@ import type { Message } from "@/types";
 
 function threadPreview(last: Message): string {
   const ch = (last.channel ?? "").toLowerCase();
-  const isCall = ch.includes("call") || ch.includes("voicemail") || last.call_status !== null;
+  const chNum = Number(last.channel);
+  const isCall = ch.includes("call") || ch.includes("voicemail") ||
+    chNum === 4 || chNum === 5 || last.call_status !== null;
   if (!isCall) return last.body || "(no body)";
   const status = last.call_status ?? "";
   const isMissed = ["missed", "no_answer", "cancelled", "busy"].includes(status);

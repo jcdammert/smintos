@@ -13,7 +13,11 @@ export const dynamic = "force-dynamic";
 
 function isCallMessage(m: Message) {
   const ch = (m.channel ?? "").toLowerCase();
-  return ch.includes("call") || ch.includes("voicemail") || m.call_duration !== null || m.call_status !== null;
+  const chNum = Number(m.channel);
+  // GHL stores call type as numeric 4, voicemail as 5
+  return ch.includes("call") || ch.includes("voicemail") ||
+    chNum === 4 || chNum === 5 ||
+    m.call_duration !== null || m.call_status !== null;
 }
 
 function fmtDuration(secs: number) {
