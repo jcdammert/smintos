@@ -129,6 +129,10 @@ export interface Message {
   channel: string | null;
   body: string | null;
   status: string | null;
+  call_duration: number | null;
+  call_status: string | null;
+  recording_url: string | null;
+  transcript: string | null;
   created_at: string;
 }
 

@@ -4,6 +4,22 @@ import { getMessageThreads } from "@/lib/data";
 import { EmptyState } from "@/components/ui/Card";
 import { formatTime, formatDate } from "@/lib/format";
 import { getUserTimezone } from "@/lib/timezone";
+import type { Message } from "@/types";
+
+function threadPreview(last: Message): string {
+  const ch = (last.channel ?? "").toLowerCase();
+  const isCall = ch.includes("call") || ch.includes("voicemail") || last.call_status !== null;
+  if (!isCall) return last.body || "(no body)";
+  const status = last.call_status ?? "";
+  const isMissed = ["missed", "no_answer", "cancelled", "busy"].includes(status);
+  const isVoicemail = status === "voicemail" || ch.includes("voicemail");
+  if (isVoicemail) return "🎙️ Voicemail";
+  if (isMissed) return "📵 Missed call";
+  const dur = last.call_duration
+    ? ` · ${Math.floor(last.call_duration / 60)}:${String(last.call_duration % 60).padStart(2, "0")}`
+    : "";
+  return `📞 Call${dur}`;
+}
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -67,10 +83,10 @@ export default async function MessagesPage() {
                     </span>
                   </div>
                   <p className="mt-0.5 truncate text-sm text-text-secondary">
-                    {last.direction === "outbound" && (
+                    {last.direction === "outbound" && !threadPreview(last).startsWith("📞") && !threadPreview(last).startsWith("📵") && !threadPreview(last).startsWith("🎙️") && (
                       <span className="text-text-secondary">You: </span>
                     )}
-                    {last.body || "(no body)"}
+                    {threadPreview(last)}
                   </p>
                 </div>
               </Link>

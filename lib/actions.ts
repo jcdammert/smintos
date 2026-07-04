@@ -2047,6 +2047,29 @@ export async function importGhlMessagesAction(): Promise<{
 
     const rows = rawMessages.map((m: Record<string, unknown>) => {
       const dir = String(m.direction ?? "").toLowerCase();
+      const channelRaw = String((m.type as string | undefined) ?? (m.messageType as string | undefined) ?? "SMS");
+      // GHL uses type=4 or "TYPE_CALL"/"CALL" for phone calls; type=5 for voicemail
+      const isCall = channelRaw.toLowerCase().includes("call") ||
+                     channelRaw.toLowerCase().includes("voicemail") ||
+                     Number(m.type) === 4 || Number(m.type) === 5;
+      const meta = (m.meta ?? {}) as Record<string, unknown>;
+
+      // Extract call-specific fields defensively across GHL API versions
+      const callDuration = isCall
+        ? Number(m.callDuration ?? meta.callDuration ?? m.duration ?? 0) || null
+        : null;
+      const callStatus = isCall
+        ? (String(m.callStatus ?? meta.callStatus ?? m.status ?? "").toLowerCase() || null)
+        : null;
+      const rawAttachments = Array.isArray(m.attachments) ? m.attachments as string[] : [];
+      const recordingUrl = isCall
+        ? (rawAttachments.find((a) => typeof a === "string" && a.length > 0) ??
+           (String(meta.recordingUrl ?? meta.recording ?? "") || null))
+        : null;
+      const transcript = isCall
+        ? (String(m.transcriptionText ?? m.transcription ?? meta.transcription ?? "") || null)
+        : null;
+
       return {
         user_id: user.id,
         client_id: clientId,
@@ -2054,9 +2077,13 @@ export async function importGhlMessagesAction(): Promise<{
         ghl_conversation_id: convId,
         ghl_message_id: String(m.id ?? m._id ?? "") || null,
         direction: dir === "outbound" ? "outbound" : "inbound",
-        channel: (m.type as string | undefined) ?? (m.messageType as string | undefined) ?? "SMS",
+        channel: channelRaw,
         body: (m.body as string | undefined) ?? (m.message as string | undefined) ?? null,
         status: (m.status as string | undefined) ?? null,
+        call_duration: callDuration,
+        call_status: callStatus,
+        recording_url: recordingUrl,
+        transcript,
         created_at:
           (m.dateAdded as string | undefined) ??
           (m.created_at as string | undefined) ??

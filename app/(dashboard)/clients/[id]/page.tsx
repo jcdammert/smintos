@@ -72,7 +72,7 @@ export default async function ClientDetailPage({
         </dl>
       </Card>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         <LinkButton href={`/estimates/new?client=${client.id}`} size="sm">
           + Estimate
         </LinkButton>
@@ -86,6 +86,21 @@ export default async function ClientDetailPage({
         >
           Schedule
         </LinkButton>
+        {client.phone ? (
+          <a
+            href={`tel:${client.phone}`}
+            className="flex min-h-[40px] items-center justify-center gap-1.5 rounded-card border border-line bg-white px-3 text-sm font-semibold text-text-primary transition active:scale-[0.98]"
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4 text-mint-dark" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8 19.79 19.79 0 01.01 2.18 2 2 0 012 0h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 14.92z" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Call
+          </a>
+        ) : (
+          <span className="flex min-h-[40px] items-center justify-center rounded-card border border-line bg-white px-3 text-sm text-text-secondary opacity-40">
+            No phone
+          </span>
+        )}
       </div>
 
       <section>
