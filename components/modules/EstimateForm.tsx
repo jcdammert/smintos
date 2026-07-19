@@ -42,6 +42,7 @@ export function EstimateForm({
   const [items, setItems]         = useState<LineItem[]>(
     editingEstimate?.line_items?.length ? (editingEstimate.line_items as LineItem[]) : [newItem()],
   );
+  const [discountEnabled, setDiscountEnabled] = useState(false);
   const [discount, setDiscount]   = useState<Discount>({ type: "fixed", value: 0 });
   const [expiryDate, setExpiryDate] = useState(defaultExpiry());
   const [taxEnabled, setTaxEnabled] = useState(false);
@@ -236,7 +237,7 @@ export function EstimateForm({
         </div>
 
         {/* Discount toggle */}
-        {discountAmount > 0 ? (
+        {discountEnabled ? (
           <div className="flex items-center gap-2 px-4 py-2">
             <select
               value={discount.type}
@@ -249,19 +250,20 @@ export function EstimateForm({
             <input
               type="number" min={0} step={discount.type === "percent" ? 1 : 0.01}
               max={discount.type === "percent" ? 100 : undefined}
-              value={discount.value || ""}
-              onChange={(e) => setDiscount({ ...discount, value: Number(e.target.value) || 0 })}
+              value={discount.value === 0 ? "" : discount.value}
+              onChange={(e) => setDiscount({ ...discount, value: e.target.value === "" ? 0 : Number(e.target.value) })}
+              placeholder="0"
               autoFocus
               className="h-8 w-24 rounded-lg border border-line px-2 text-sm outline-none focus:border-mint"
             />
             <span className="flex-1 text-right text-sm text-danger">
-              − {formatCurrency(discountAmount)}
+              {discountAmount > 0 ? `− ${formatCurrency(discountAmount)}` : ""}
             </span>
-            <button type="button" onClick={() => setDiscount({ type: "fixed", value: 0 })}
+            <button type="button" onClick={() => { setDiscountEnabled(false); setDiscount({ type: "fixed", value: 0 }); }}
               className="text-text-secondary hover:text-text-primary text-xs">✕</button>
           </div>
         ) : (
-          <button type="button" onClick={() => setDiscount({ type: "fixed", value: 0.01 })}
+          <button type="button" onClick={() => setDiscountEnabled(true)}
             className="flex w-full items-center gap-1.5 px-4 py-2 text-xs font-semibold text-mint-dark text-left">
             + Add discount
           </button>
