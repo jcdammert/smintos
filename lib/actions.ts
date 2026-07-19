@@ -21,6 +21,7 @@ import {
   listContacts,
   listInvoices as ghlListInvoices,
   listEstimates as ghlListEstimates,
+  getEstimate as ghlGetEstimate,
   listProducts as ghlListProducts,
   createNote as ghlCreateNote,
   listNotes as ghlListNotes,
@@ -2448,4 +2449,56 @@ export async function removeContactTagAction(
   const res = await removeContactTags(user.ghl_api_key, ghlContactId, [tag]);
   if (!res.ok) return { ok: false, tags: [], error: res.error ?? "Failed" };
   return { ok: true, tags: res.data?.tags ?? [] };
+}
+
+// ---------------------------------------------------------------------------
+// Estimate default terms
+// ---------------------------------------------------------------------------
+
+export async function fetchGhlDefaultTermsAction(): Promise<{
+  ok: boolean;
+  terms: string;
+  error?: string;
+}> {
+  const user = await getCurrentUser();
+  if (!user || !hasGhlCreds(user)) return { ok: false, terms: "", error: "No GHL credentials" };
+
+  // Return saved default immediately if already set
+  if (user.default_terms?.trim()) return { ok: true, terms: user.default_terms.trim() };
+
+  // Otherwise fetch from recent GHL estimates — the list API omits terms,
+  // so we need the individual detail endpoint for each until we find terms.
+  const listRes = await ghlListEstimates(user.ghl_location_id, user.ghl_api_key, { limit: 20 });
+  if (!listRes.ok || !listRes.data?.estimates?.length) {
+    return { ok: false, terms: "", error: listRes.error ?? "No estimates found in GHL" };
+  }
+
+  for (const est of listRes.data.estimates) {
+    const id = (est._id ?? est.id) as string | undefined;
+    if (!id) continue;
+
+    const detail = await ghlGetEstimate(user.ghl_location_id, user.ghl_api_key, id);
+    if (!detail.ok || !detail.data) continue;
+
+    // GHL may wrap the estimate or return it flat — check both shapes
+    const flat = detail.data as Record<string, unknown>;
+    const nested = (flat.estimate ?? flat.invoice ?? flat) as Record<string, unknown>;
+
+    // Terms can live under several field names depending on GHL version
+    const candidates = [
+      nested.terms, nested.termsAndConditions, nested.termsNotes,
+      nested.notes, flat.terms, flat.termsAndConditions,
+    ];
+    for (const c of candidates) {
+      const t = typeof c === "string" ? c.trim() : "";
+      if (t) {
+        // Persist so future loads skip this API roundtrip
+        const supabase = createServiceSupabase();
+        await supabase.from("users").update({ default_terms: t }).eq("id", user.id);
+        return { ok: true, terms: t };
+      }
+    }
+  }
+
+  return { ok: false, terms: "", error: "No terms found on any recent GHL estimate" };
 }

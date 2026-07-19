@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { createEstimateAction, updateEstimateAction } from "@/lib/actions";
+import { useState, useTransition, useEffect } from "react";
+import { createEstimateAction, updateEstimateAction, fetchGhlDefaultTermsAction } from "@/lib/actions";
 import { Button } from "@/components/ui/Button";
 import dynamic from "next/dynamic";
 const ProductPicker = dynamic(
@@ -44,9 +44,12 @@ export function EstimateForm({
   );
   const [discount, setDiscount]   = useState<Discount>({ type: "fixed", value: 0 });
   const [expiryDate, setExpiryDate] = useState(defaultExpiry());
-  const [taxRate, setTaxRate]     = useState(0);
+  const [taxEnabled, setTaxEnabled] = useState(false);
+  const [taxRate, setTaxRate]       = useState<number | "">(0);
   const [includeTerms, setIncludeTerms] = useState(true);
   const [terms, setTerms]         = useState(editingEstimate?.terms ?? defaultTerms);
+  const [termsLoading, setTermsLoading] = useState(false);
+  const [termsError, setTermsError]     = useState<string | null>(null);
   const [depositEnabled, setDepositEnabled] = useState(false);
   const [depositAmount, setDepositAmount]   = useState(0);
   const [depositType, setDepositType]       = useState<"fixed" | "percent">("fixed");
@@ -56,7 +59,8 @@ export function EstimateForm({
   const discountAmount = discount.value > 0
     ? discount.type === "percent" ? subtotal * (discount.value / 100) : discount.value
     : 0;
-  const taxAmount = taxRate > 0 ? subtotal * (taxRate / 100) : 0;
+  const taxRateNum = typeof taxRate === "number" ? taxRate : 0;
+  const taxAmount = taxEnabled && taxRateNum > 0 ? subtotal * (taxRateNum / 100) : 0;
   const total = Math.max(0, subtotal - discountAmount + taxAmount);
 
   const depositDollar = depositEnabled && depositAmount > 0
@@ -76,6 +80,26 @@ export function EstimateForm({
     });
   }
 
+  function loadTermsFromGhl() {
+    setTermsError(null);
+    setTermsLoading(true);
+    fetchGhlDefaultTermsAction().then((res) => {
+      setTermsLoading(false);
+      if (res.ok && res.terms) {
+        setTerms(res.terms);
+        setIncludeTerms(true);
+      } else {
+        setTermsError(res.error ?? "No terms found in GHL");
+      }
+    });
+  }
+
+  // Auto-load terms on mount if none pre-filled
+  useEffect(() => {
+    if (!terms) loadTermsFromGhl();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function submit() {
     if (!clientId) return;
     const fd = new FormData();
@@ -84,7 +108,7 @@ export function EstimateForm({
     fd.set("line_items", JSON.stringify(items.filter((i) => i.description)));
     fd.set("discount", JSON.stringify(discount));
     fd.set("expiry_date", expiryDate);
-    fd.set("tax_rate", String(taxRate));
+    fd.set("tax_rate", taxEnabled ? String(taxRateNum) : "0");
     fd.set("terms", includeTerms ? terms : "");
     fd.set("deposit_amount", depositEnabled ? String(depositAmount) : "0");
     fd.set("deposit_type", depositType);
@@ -244,23 +268,24 @@ export function EstimateForm({
         )}
 
         {/* Tax toggle */}
-        {taxRate > 0 ? (
+        {taxEnabled ? (
           <div className="flex items-center gap-2 px-4 py-2">
             <input
               type="number" min={0} max={100} step="0.1" inputMode="decimal"
-              value={taxRate || ""}
-              onChange={(e) => setTaxRate(Number(e.target.value) || 0)}
+              value={taxRate}
+              onChange={(e) => setTaxRate(e.target.value === "" ? "" : Number(e.target.value))}
+              placeholder="0"
               className="h-8 w-20 rounded-lg border border-line px-2 text-sm outline-none focus:border-mint"
             />
             <span className="text-xs text-text-secondary">% tax</span>
             <span className="flex-1 text-right text-sm text-text-secondary">
-              + {formatCurrency(taxAmount)}
+              {taxAmount > 0 ? `+ ${formatCurrency(taxAmount)}` : ""}
             </span>
-            <button type="button" onClick={() => setTaxRate(0)}
+            <button type="button" onClick={() => { setTaxEnabled(false); setTaxRate(0); }}
               className="text-text-secondary hover:text-text-primary text-xs">✕</button>
           </div>
         ) : (
-          <button type="button" onClick={() => setTaxRate(0.1)}
+          <button type="button" onClick={() => setTaxEnabled(true)}
             className="flex w-full items-center gap-1.5 px-4 py-2 text-xs font-semibold text-mint-dark text-left">
             + Add tax
           </button>
@@ -315,21 +340,34 @@ export function EstimateForm({
 
       {/* Terms & conditions */}
       <div className="rounded-card border border-line bg-white p-3 space-y-2">
-        <label className="flex items-center gap-3 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={includeTerms}
-            onChange={(e) => setIncludeTerms(e.target.checked)}
-            className="h-4 w-4 rounded border-line accent-mint"
-          />
-          <span className="text-sm font-medium text-text-primary">Include terms &amp; conditions</span>
-        </label>
+        <div className="flex items-center justify-between">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={includeTerms}
+              onChange={(e) => setIncludeTerms(e.target.checked)}
+              className="h-4 w-4 rounded border-line accent-mint"
+            />
+            <span className="text-sm font-medium text-text-primary">Include terms &amp; conditions</span>
+          </label>
+          <button
+            type="button"
+            onClick={loadTermsFromGhl}
+            disabled={termsLoading}
+            className="text-xs font-semibold text-mint-dark disabled:opacity-50"
+          >
+            {termsLoading ? "Loading…" : "↓ Load from GHL"}
+          </button>
+        </div>
+        {termsError && (
+          <p className="text-xs text-danger">{termsError}</p>
+        )}
         {includeTerms && (
           <textarea
             value={terms}
             onChange={(e) => setTerms(e.target.value)}
             rows={6}
-            placeholder="Add your terms and conditions…"
+            placeholder={termsLoading ? "Loading your terms from GHL…" : "Add your terms and conditions…"}
             className="w-full resize-y rounded-lg border border-line bg-white px-3 py-2 text-sm outline-none focus:border-mint"
           />
         )}
