@@ -364,7 +364,8 @@ export async function createEstimateAction(formData: FormData) {
   const total = Math.max(0, subtotal - discountAmount + taxAmount);
 
   // Generate estimate number once — used for both Supabase and GHL payload.
-  const smintoEstNumber = shortNumber("EST"); // e.g. "EST-593505"
+  // Declared `let` so we can overwrite it with whatever number GHL actually assigns.
+  let smintoEstNumber = shortNumber("EST");
 
   // Push to GHL as a draft estimate when credentials are connected.
   let ghlEstimateId: string | null = null;
@@ -397,7 +398,6 @@ export async function createEstimateAction(formData: FormData) {
         ? `+${digitsOnly}`
         : rawPhone || "+10000000000";
 
-    const ghlEstSeq = parseInt(smintoEstNumber.replace("EST-", ""), 10);
     const estimateName = name ?? `Estimate ${smintoEstNumber}`;
     const estimatePayload = {
       contactId: fullClient.ghl_contact_id,
@@ -410,8 +410,8 @@ export async function createEstimateAction(formData: FormData) {
       // GHL requires both `title` AND `name`.
       title: estimateName,
       name: estimateName,
-      // Provide both prefix and number — GHL ignores prefix-only and falls back to "undefined<seq>"
-      invoiceNumber: { prefix: "EST-", invoiceNumber: ghlEstSeq },
+      // Send as string — this is the field name GHL uses in GET responses.
+      estimateNumber: smintoEstNumber,
       currency: "USD",
       businessDetails: { name: userRecord?.business_name ?? "My Business" },
       issueDate: today,
@@ -467,15 +467,22 @@ export async function createEstimateAction(formData: FormData) {
 
     if (res.ok) {
       const d = res.data as Record<string, unknown> | null;
+      const nested = d?.estimate as Record<string, unknown> | undefined;
       // Try every field name GHL might use for the estimate ID.
       ghlEstimateId =
         (d?.estimateId as string | undefined) ??
         (d?._id as string | undefined) ??
         (d?.id as string | undefined) ??
-        ((d?.estimate as Record<string, unknown> | undefined)?._id as string | undefined) ??
-        ((d?.estimate as Record<string, unknown> | undefined)?.id as string | undefined) ??
+        (nested?._id as string | undefined) ??
+        (nested?.id as string | undefined) ??
         res.data?.invoice?.id ??
         null;
+      // Read back whatever number GHL actually assigned so Smintos matches.
+      const ghlNumber =
+        (d?.estimateNumber as string | undefined) ??
+        (nested?.estimateNumber as string | undefined) ??
+        (d?.invoiceNumber as string | undefined);
+      if (ghlNumber) smintoEstNumber = ghlNumber;
     }
   }
 
