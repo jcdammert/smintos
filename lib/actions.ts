@@ -401,6 +401,8 @@ export async function createEstimateAction(formData: FormData) {
         : rawPhone || "+10000000000";
 
     const estimateName = name ?? `Estimate ${smintoEstNumber}`;
+    // Pull all location details so GHL renders logo, phone, address on the estimate.
+    const bizName = userRecord?.business_name ?? (loc?.name as string | undefined) ?? "My Business";
     const estimatePayload = {
       contactId: fullClient.ghl_contact_id,
       contactDetails: {
@@ -409,15 +411,20 @@ export async function createEstimateAction(formData: FormData) {
         phoneNo: e164Phone,
         email: fullClient.email ?? `${fullClient.ghl_contact_id}@placeholder.com`,
       },
-      // GHL requires both `title` AND `name`.
-      title: estimateName,
+      // Only `name` — omitting `title` prevents it from overriding the business header in GHL's template.
       name: estimateName,
-      // Send as string — this is the field name GHL uses in GET responses.
-      estimateNumber: smintoEstNumber,
       currency: "USD",
       businessDetails: {
-        name: userRecord?.business_name ?? "My Business",
+        name: bizName,
         ...(logoUrl ? { logoUrl } : {}),
+        ...(loc?.phone ? { phoneNo: loc.phone as string } : {}),
+        ...(loc?.email ? { email: loc.email as string } : {}),
+        ...(loc?.address ? { address: loc.address as string } : {}),
+        ...(loc?.city ? { city: loc.city as string } : {}),
+        ...(loc?.state ? { state: loc.state as string } : {}),
+        ...(loc?.country ? { country: loc.country as string } : {}),
+        ...(loc?.postalCode ? { postalCode: loc.postalCode as string } : {}),
+        ...(loc?.website ? { website: loc.website as string } : {}),
       },
       issueDate: today,
       expiryDate: expiry,
@@ -459,9 +466,8 @@ export async function createEstimateAction(formData: FormData) {
       estimatePayload,
     );
 
-    // If the dedicated estimate endpoint doesn't exist on this account (404),
-    // fall back to creating a draft invoice which GHL treats as an estimate.
-    if (!res.ok && (res.status === 404 || res.status === 405)) {
+    // Fall back to the invoice endpoint if the estimate endpoint rejects the request.
+    if (!res.ok) {
       res = await ghlCreateEstimateViaInvoice(
         user.ghl_location_id,
         user.ghl_api_key,
@@ -744,11 +750,12 @@ export async function sendEstimateAction(estimateId: string, channel: "email" | 
     // If not yet in GHL, push it first.
     if (!ghlId && contact?.ghl_contact_id) {
       const lineItems = (estimate.line_items as LineItem[]) ?? [];
-      const { data: userRecord } = await supabase
-        .from("users")
-        .select("business_name")
-        .eq("id", user.id)
-        .maybeSingle();
+      const [{ data: userRecord2 }, locRes2] = await Promise.all([
+        supabase.from("users").select("business_name").eq("id", user.id).maybeSingle(),
+        getLocation(user.ghl_location_id, user.ghl_api_key),
+      ]);
+      const loc2 = locRes2.data?.location as Record<string, unknown> | undefined;
+      const logoUrl2 = (loc2?.logoUrl ?? loc2?.logo ?? loc2?.logo_url) as string | undefined;
       const today2 = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
       const expiry2 = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
       const estName2 = (estimate.name as string | null) ?? estimate.estimate_number;
@@ -764,10 +771,18 @@ export async function sendEstimateAction(estimateId: string, channel: "email" | 
           phoneNo: e164b,
           email: (c2.email as string | undefined) ?? `${contact.ghl_contact_id}@placeholder.com`,
         },
-        title: estName2,
         name: estName2,
         currency: "USD",
-        businessDetails: { name: userRecord?.business_name ?? "My Business" },
+        businessDetails: {
+          name: userRecord2?.business_name ?? (loc2?.name as string | undefined) ?? "My Business",
+          ...(logoUrl2 ? { logoUrl: logoUrl2 } : {}),
+          ...(loc2?.phone ? { phoneNo: loc2.phone as string } : {}),
+          ...(loc2?.address ? { address: loc2.address as string } : {}),
+          ...(loc2?.city ? { city: loc2.city as string } : {}),
+          ...(loc2?.state ? { state: loc2.state as string } : {}),
+          ...(loc2?.postalCode ? { postalCode: loc2.postalCode as string } : {}),
+          ...(loc2?.website ? { website: loc2.website as string } : {}),
+        },
         issueDate: today2,
         expiryDate: expiry2,
         discount: { type: "percentage", value: 0 },
