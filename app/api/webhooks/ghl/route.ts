@@ -330,6 +330,32 @@ export async function POST(req: Request) {
         break;
       }
 
+      case "estimate.deleted":
+      case "EstimateDelete": {
+        const e = (payload.estimate ?? payload) as Record<string, unknown>;
+        const ghlEstId = pickString(e, ["id", "estimate_id", "estimateId", "_id"]) ?? "";
+        if (!ghlEstId) break;
+        await supabase
+          .from("estimates")
+          .delete()
+          .eq("user_id", userId)
+          .eq("ghl_invoice_id", ghlEstId);
+        break;
+      }
+
+      case "invoice.deleted":
+      case "InvoiceDelete": {
+        const inv = (payload.invoice ?? payload) as Record<string, unknown>;
+        const ghlInvId = pickString(inv, ["id", "invoice_id", "invoiceId", "_id"]) ?? "";
+        if (!ghlInvId) break;
+        await supabase
+          .from("invoices")
+          .delete()
+          .eq("user_id", userId)
+          .eq("ghl_invoice_id", ghlInvId);
+        break;
+      }
+
       case "invoice.viewed":
       case "InvoiceViewed": {
         const inv = (payload.invoice ?? payload) as Record<string, unknown>;

@@ -411,14 +411,14 @@ export async function createEstimateAction(formData: FormData) {
         phoneNo: e164Phone,
         email: fullClient.email ?? `${fullClient.ghl_contact_id}@placeholder.com`,
       },
-      // Only `name` — omitting `title` prevents it from overriding the business header in GHL's template.
+      // GHL requires both `title` AND `name`.
+      title: estimateName,
       name: estimateName,
       currency: "USD",
       businessDetails: {
         name: bizName,
         ...(logoUrl ? { logoUrl } : {}),
         ...(loc?.phone ? { phoneNo: loc.phone as string } : {}),
-        ...(loc?.email ? { email: loc.email as string } : {}),
         ...(loc?.address ? { address: loc.address as string } : {}),
         ...(loc?.city ? { city: loc.city as string } : {}),
         ...(loc?.state ? { state: loc.state as string } : {}),
@@ -465,6 +465,7 @@ export async function createEstimateAction(formData: FormData) {
       user.ghl_api_key,
       estimatePayload,
     );
+    console.log("GHL_CREATE_ESTIMATE", { ok: res.ok, status: res.status, error: res.error });
 
     // Fall back to the invoice endpoint if the estimate endpoint rejects the request.
     if (!res.ok) {
@@ -473,6 +474,7 @@ export async function createEstimateAction(formData: FormData) {
         user.ghl_api_key,
         estimatePayload,
       );
+      console.log("GHL_CREATE_VIA_INVOICE", { ok: res.ok, status: res.status, error: res.error });
     }
 
 
@@ -763,7 +765,7 @@ export async function sendEstimateAction(estimateId: string, channel: "email" | 
       const phone2 = (c2.phone as string | undefined) ?? "";
       const digits2 = phone2.replace(/\D/g, "");
       const e164b = digits2.length === 10 ? `+1${digits2}` : digits2.length === 11 && digits2.startsWith("1") ? `+${digits2}` : phone2 || "+10000000000";
-      const res = await ghlCreateEstimate(user.ghl_location_id, user.ghl_api_key, {
+      const payload2 = {
         contactId: contact.ghl_contact_id,
         contactDetails: {
           id: contact.ghl_contact_id,
@@ -771,6 +773,7 @@ export async function sendEstimateAction(estimateId: string, channel: "email" | 
           phoneNo: e164b,
           email: (c2.email as string | undefined) ?? `${contact.ghl_contact_id}@placeholder.com`,
         },
+        title: estName2,
         name: estName2,
         currency: "USD",
         businessDetails: {
@@ -797,9 +800,11 @@ export async function sendEstimateAction(estimateId: string, channel: "email" | 
           return item;
         }),
         total: Number(estimate.total) || 0,
-      });
-      if (res.ok) {
-        ghlId = res.data?.invoice?.id ?? res.data?.id ?? null;
+      };
+      let res2 = await ghlCreateEstimate(user.ghl_location_id, user.ghl_api_key, payload2);
+      if (!res2.ok) res2 = await ghlCreateEstimateViaInvoice(user.ghl_location_id, user.ghl_api_key, payload2);
+      if (res2.ok) {
+        ghlId = res2.data?.invoice?.id ?? (res2.data as Record<string,unknown>)?.id as string ?? null;
         if (ghlId) {
           await supabase
             .from("estimates")
