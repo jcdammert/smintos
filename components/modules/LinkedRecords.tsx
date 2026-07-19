@@ -3,7 +3,7 @@ import { EstimateBadge, InvoiceBadge, Badge } from "@/components/ui/Badge";
 import { formatCurrency } from "@/lib/format";
 import type { AppointmentStatus, EstimateStatus, InvoiceStatus } from "@/types";
 
-type EstimateLink = { id: string; estimate_number: string; name: string | null; total: number; status: string };
+type EstimateLink = { id: string; estimate_number: string | null; name: string | null; total: number; status: string };
 type InvoiceLink = { id: string; invoice_number: string; name: string | null; total: number; status: string };
 type AppointmentLink = { id: string; title: string; start_time: string; status: string; contact_name?: string | null };
 
@@ -39,7 +39,7 @@ export function LinkedRecords({ estimates = [], invoices = [], appointments = []
             <div className="min-w-0">
               <p className="text-[11px] font-medium uppercase tracking-wide text-text-secondary">Estimate</p>
               <p className="truncate font-semibold text-text-primary">
-                {e.name || e.estimate_number} · {formatCurrency(e.total)}
+                {e.name || e.estimate_number || "—"} · {formatCurrency(e.total)}
               </p>
             </div>
             <EstimateBadge status={e.status as EstimateStatus} />

@@ -77,7 +77,7 @@ export function LibraryTabs({ initialTab, clients, estimates, invoices, products
 
   const filteredEstimates = q
     ? estimates.filter((e) =>
-        match(e.name || e.estimate_number, q) ||
+        match(e.name || e.estimate_number || "", q) ||
         (e.client?.name && match(e.client.name, q)) ||
         match(String(e.total), q)
       )
@@ -163,7 +163,7 @@ export function LibraryTabs({ initialTab, clients, estimates, invoices, products
                 >
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-semibold text-text-primary">
-                      {e.name || e.estimate_number} · {formatCurrency(e.total)}
+                      {e.name || e.estimate_number || "—"} · {formatCurrency(e.total)}
                     </p>
                     <p className="truncate text-sm text-text-secondary">
                       {e.client?.name ?? "—"} · {formatDate(e.created_at, tz)}

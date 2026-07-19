@@ -70,6 +70,18 @@ async function ghlRequest<T>({
 }
 
 // ---------------------------------------------------------------------------
+// Locations
+// ---------------------------------------------------------------------------
+
+export function getLocation(locationId: string, apiKey: string) {
+  return ghlRequest<{ location?: Record<string, unknown> }>({
+    method: "GET",
+    apiKey,
+    path: `/locations/${locationId}`,
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Contacts
 // ---------------------------------------------------------------------------
 

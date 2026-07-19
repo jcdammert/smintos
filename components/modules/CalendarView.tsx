@@ -182,7 +182,7 @@ function JobTitlePicker({
         ...work.estimates.map((e) => ({
           kind: "estimate" as const,
           id: e.id,
-          label: e.name || `Estimate #${e.estimate_number}`,
+          label: e.name || (e.estimate_number ? `Estimate #${e.estimate_number}` : "Estimate"),
           sub: `${formatCurrency(e.total)} · ${e.status}`,
         })),
         ...work.invoices.map((i) => ({
@@ -531,7 +531,7 @@ function JobDetailSheet({ apt, onClose }: { apt: Appointment; onClose: () => voi
   const [invPending, startInv] = useTransition();
   const [copiedAddr, setCopiedAddr] = useState(false);
   const [links, setLinks] = useState<{
-    estimate: { id: string; estimate_number: string; name: string | null; total: number } | null;
+    estimate: { id: string; estimate_number: string | null; name: string | null; total: number } | null;
     invoice: { id: string; invoice_number: string; name: string | null; total: number; status: string } | null;
     clientId: string | null;
   } | null>(null);
@@ -605,7 +605,7 @@ function JobDetailSheet({ apt, onClose }: { apt: Appointment; onClose: () => voi
                   className="flex items-center justify-between gap-2 rounded-card border border-line bg-white px-3 py-2.5 text-sm"
                 >
                   <span className="text-text-secondary">Estimate</span>
-                  <span className="font-semibold text-text-primary">{links.estimate.name || links.estimate.estimate_number}</span>
+                  <span className="font-semibold text-text-primary">{links.estimate.name || links.estimate.estimate_number || "—"}</span>
                 </Link>
               )}
             </div>

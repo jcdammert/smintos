@@ -31,6 +31,7 @@ import {
   listConversationMessages,
   getCallTranscription,
   getContact,
+  getLocation,
   getLocationTags,
   addContactTags,
   removeContactTags,
@@ -380,11 +381,12 @@ export async function createEstimateAction(formData: FormData) {
     .maybeSingle();
 
   if (hasGhlCreds(user) && fullClient?.ghl_contact_id) {
-    const { data: userRecord } = await supabase
-      .from("users")
-      .select("business_name")
-      .eq("id", user.id)
-      .maybeSingle();
+    const [{ data: userRecord }, locationRes] = await Promise.all([
+      supabase.from("users").select("business_name").eq("id", user.id).maybeSingle(),
+      getLocation(user.ghl_location_id, user.ghl_api_key),
+    ]);
+    const loc = locationRes.data?.location as Record<string, unknown> | undefined;
+    const logoUrl = (loc?.logoUrl ?? loc?.logo ?? loc?.logo_url) as string | undefined;
 
     const today = new Date(Date.now() - 86400000).toISOString().slice(0, 10); // yesterday — avoids UTC/timezone future-date rejection
     const expiry = expiryDate ?? new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10);
@@ -413,7 +415,10 @@ export async function createEstimateAction(formData: FormData) {
       // Send as string — this is the field name GHL uses in GET responses.
       estimateNumber: smintoEstNumber,
       currency: "USD",
-      businessDetails: { name: userRecord?.business_name ?? "My Business" },
+      businessDetails: {
+        name: userRecord?.business_name ?? "My Business",
+        ...(logoUrl ? { logoUrl } : {}),
+      },
       issueDate: today,
       expiryDate: expiry,
       discount: { type: "percentage", value: 0 },
@@ -477,12 +482,27 @@ export async function createEstimateAction(formData: FormData) {
         (nested?.id as string | undefined) ??
         res.data?.invoice?.id ??
         null;
-      // Read back whatever number GHL actually assigned so Smintos matches.
-      const ghlNumber =
-        (d?.estimateNumber as string | undefined) ??
-        (nested?.estimateNumber as string | undefined) ??
-        (d?.invoiceNumber as string | undefined);
-      if (ghlNumber) smintoEstNumber = ghlNumber;
+
+      // GHL often omits estimateNumber from the create response.
+      // Fetch the full estimate so we can read back the number GHL actually assigned.
+      if (ghlEstimateId) {
+        const detail = await ghlGetEstimate(user.ghl_location_id, user.ghl_api_key, ghlEstimateId);
+        if (detail.ok) {
+          const obj = (detail.data?.estimate ?? detail.data) as Record<string, unknown> | null;
+          const ghlNumber =
+            (obj?.estimateNumber as string | undefined) ??
+            (obj?.invoiceNumber as string | undefined) ??
+            (d?.estimateNumber as string | undefined) ??
+            (nested?.estimateNumber as string | undefined);
+          // Only overwrite if GHL gave us a real number (not "undefined…")
+          if (ghlNumber && !ghlNumber.startsWith("undefined")) {
+            smintoEstNumber = ghlNumber;
+          } else {
+            // GHL couldn't assign a proper number — store null so UI shows "—"
+            smintoEstNumber = null as unknown as string;
+          }
+        }
+      }
     }
   }
 

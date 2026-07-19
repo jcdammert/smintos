@@ -133,7 +133,7 @@ export default async function ClientDetailPage({
               >
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold text-text-primary">
-                    {e.name || e.estimate_number} · {formatCurrency(e.total)}
+                    {e.name || e.estimate_number || "—"} · {formatCurrency(e.total)}
                   </p>
                   <p className="text-xs text-text-secondary">
                     {formatDate(e.created_at, tz)}

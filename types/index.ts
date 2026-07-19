@@ -49,7 +49,7 @@ export interface Estimate {
   user_id: string;
   client_id: string;
   ghl_invoice_id: string | null;
-  estimate_number: string;
+  estimate_number: string | null;
   name: string | null;
   line_items: LineItem[];
   total: number;
@@ -222,7 +222,7 @@ export interface GhlInvoiceInput {
   items: GhlInvoiceItem[];
   total?: number;
   currency?: string;
-  businessDetails?: { name: string; address?: string; city?: string; state?: string; country?: string; postalCode?: string; };
+  businessDetails?: { name: string; logoUrl?: string; address?: string; city?: string; state?: string; country?: string; postalCode?: string; };
   [key: string]: unknown;
 }
 

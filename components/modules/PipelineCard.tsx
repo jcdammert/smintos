@@ -46,7 +46,7 @@ export function EstimatePipelineCard({ item }: { item: WithClient<Estimate> }) {
       <Icon kind="estimate" />
       <div className="min-w-0 flex-1">
         <p className="truncate font-semibold text-text-primary">
-          {item.name || item.estimate_number} · {formatCurrency(item.total)}
+          {item.name || item.estimate_number || "—"} · {formatCurrency(item.total)}
         </p>
         <p className="truncate text-sm text-text-secondary">
           {item.client?.name ?? "Unknown client"}
