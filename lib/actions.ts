@@ -363,6 +363,9 @@ export async function createEstimateAction(formData: FormData) {
   const taxAmount = taxRate > 0 ? subtotal * (taxRate / 100) : 0;
   const total = Math.max(0, subtotal - discountAmount + taxAmount);
 
+  // Generate estimate number once — used for both Supabase and GHL payload.
+  const smintoEstNumber = shortNumber("EST"); // e.g. "EST-593505"
+
   // Push to GHL as a draft estimate when credentials are connected.
   let ghlEstimateId: string | null = null;
   const supabase = createServiceSupabase();
@@ -394,7 +397,8 @@ export async function createEstimateAction(formData: FormData) {
         ? `+${digitsOnly}`
         : rawPhone || "+10000000000";
 
-    const estimateName = name ?? `Estimate ${shortNumber("EST")}`;
+    const ghlEstSeq = parseInt(smintoEstNumber.replace("EST-", ""), 10);
+    const estimateName = name ?? `Estimate ${smintoEstNumber}`;
     const estimatePayload = {
       contactId: fullClient.ghl_contact_id,
       contactDetails: {
@@ -406,8 +410,8 @@ export async function createEstimateAction(formData: FormData) {
       // GHL requires both `title` AND `name`.
       title: estimateName,
       name: estimateName,
-      // Set the EST- prefix so GHL doesn't default to "undefined<seq>"
-      invoiceNumber: { prefix: "EST-" },
+      // Provide both prefix and number — GHL ignores prefix-only and falls back to "undefined<seq>"
+      invoiceNumber: { prefix: "EST-", invoiceNumber: ghlEstSeq },
       currency: "USD",
       businessDetails: { name: userRecord?.business_name ?? "My Business" },
       issueDate: today,
@@ -481,7 +485,7 @@ export async function createEstimateAction(formData: FormData) {
       user_id: user.id,
       client_id: clientId,
       ghl_invoice_id: ghlEstimateId,
-      estimate_number: shortNumber("EST"),
+      estimate_number: smintoEstNumber,
       name,
       line_items: lineItems,
       total,
